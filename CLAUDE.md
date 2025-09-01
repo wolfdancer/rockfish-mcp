@@ -82,3 +82,7 @@ The server exposes CRUD operations mapping to these endpoints:
 - The client extracts IDs from arguments and constructs appropriate URL paths
 
 The client abstracts the REST API complexity, while the server provides the MCP interface that AI assistants can use to interact with Rockfish resources programmatically.
+
+## API Reference
+
+For complete API documentation, see the OpenAPI specification at: https://docs.rockfish.ai/openapi.yaml

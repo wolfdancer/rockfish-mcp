@@ -327,7 +327,7 @@ async def handle_list_tools() -> List[types.Tool]:
             }
         ),
         
-        # Query tool
+        # Query tools
         types.Tool(
             name="execute_query",
             description="Execute a query and return results in CSV format",
@@ -338,6 +338,19 @@ async def handle_list_tools() -> List[types.Tool]:
                     "project_id": {"type": "string", "description": "Optional project ID to execute the query in"}
                 },
                 "required": ["query"]
+            }
+        ),
+        types.Tool(
+            name="query_dataset",
+            description="Execute a query against a specific dataset and return results in CSV format",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "Dataset ID to query against"},
+                    "query": {"type": "string", "description": "The query to execute"},
+                    "project_id": {"type": "string", "description": "Optional project ID to execute the query in"}
+                },
+                "required": ["id", "query"]
             }
         )
     ]
