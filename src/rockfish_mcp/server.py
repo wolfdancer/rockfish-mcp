@@ -168,10 +168,70 @@ async def handle_list_tools() -> List[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "Workflow name"},
-                    "definition": {"type": "object", "description": "Workflow definition"}
+                    "jobs": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "alias": {
+                                    "type": "string",
+                                    "pattern": "^[\\pL\\pM\\pN -]{2,64}$",
+                                    "description": "Alias for this job (used for referencing in inputs)"
+                                },
+                                "config": {
+                                    "type": "object",
+                                    "description": "Job configuration (can contain any action config)"
+                                },
+                                "input": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "description": "List of input aliases this job depends on"
+                                },
+                                "replicas": {
+                                    "type": "integer",
+                                    "default": 1,
+                                    "description": "Number of replicas for this job"
+                                },
+                                "worker_name": {
+                                    "type": "string",
+                                    "pattern": "^[\\pL\\pM\\pN -]{2,64}$",
+                                    "description": "Name of the worker to execute this job"
+                                },
+                                "worker_version": {
+                                    "type": "string",
+                                    "description": "Version of the worker"
+                                }
+                            },
+                            "required": ["alias", "config", "input", "worker_name", "worker_version"]
+                        },
+                        "minItems": 1,
+                        "description": "Array of jobs that make up the workflow"
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "pattern": "^[\\pL\\pM\\pN -]{2,64}$",
+                                "description": "Workflow name"
+                            },
+                            "labels": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "string",
+                                    "pattern": "^[\\pL\\pM\\pN _-]{1,64}$"
+                                },
+                                "description": "Key-value labels for the workflow"
+                            }
+                        },
+                        "required": ["name", "labels"],
+                        "description": "Workflow metadata"
+                    }
                 },
-                "required": ["name", "definition"]
+                "required": ["jobs", "metadata"],
+                "description": "Workflow definition with jobs and metadata"
             }
         ),
         types.Tool(
