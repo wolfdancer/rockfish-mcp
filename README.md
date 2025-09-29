@@ -59,7 +59,9 @@ rockfish-mcp
 
 To use this MCP server with Claude Desktop:
 
-1. **Complete the installation steps above** (clone, install dependencies, set up .env file)
+1. **Complete the installation steps above** (clone, install dependencies, set up .env file). 
+Note that you do not need to start the MCP server manually for using it with Claude Desktop.
+Claude Desktop will automatically start it for you when you follow the steps below.
 
 2. **Find your Claude Desktop configuration directory:**
    - **macOS**: `~/Library/Application Support/Claude/`
@@ -146,7 +148,7 @@ chmod +x test-mcp.sh
 ```
 
 3. **The Inspector will open in your browser** and show:
-   - Available tools (should show all 22 Rockfish tools)
+   - Available tools (should show all 32 Rockfish tools)
    - Tool schemas and descriptions
    - Interactive tool testing interface
 
@@ -184,6 +186,8 @@ chmod +x test-mcp.sh
 - `create_worker_set`: Create a new worker set
 - `get_worker_set`: Get a specific worker set by ID
 - `delete_worker_set`: Delete a worker set
+- `get_worker_set_actions`: List actions that the specific worker set can run
+- `list_available_actions`: List all actions available to the user (across all worker sets)
 
 ### Workflow Tools
 - `list_workflows`: List all workflows
@@ -198,6 +202,7 @@ chmod +x test-mcp.sh
 - `delete_model`: Delete a model
 
 ### Project Tools
+- `get_active_project`: Get the currently active project
 - `list_projects`: List all projects
 - `create_project`: Create a new project
 - `get_project`: Get a specific project by ID
@@ -209,6 +214,7 @@ chmod +x test-mcp.sh
 - `get_dataset`: Get a specific dataset by ID
 - `update_dataset`: Update a dataset
 - `delete_dataset`: Delete a dataset
+- `get_dataset_schema`: Get dataset metadata present in its schema
 
 ## Development
 
