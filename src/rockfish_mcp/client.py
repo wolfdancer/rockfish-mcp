@@ -135,6 +135,9 @@ class RockfishClient:
             return await self._request("DELETE", f"/models/{model_id}")
         
         # Project endpoints
+        elif tool_name == "get_active_project":
+            return await self._request("GET", "/project/active")
+
         elif tool_name == "list_projects":
             return await self._request("GET", "/project")
         

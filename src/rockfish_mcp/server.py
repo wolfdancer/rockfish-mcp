@@ -246,6 +246,15 @@ async def handle_list_tools() -> List[types.Tool]:
         
         # Project tools
         types.Tool(
+            name="get_active_project",
+            description="Get active project",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        ),
+        types.Tool(
             name="list_projects",
             description="List all projects",
             inputSchema={
