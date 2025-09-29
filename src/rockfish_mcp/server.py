@@ -140,6 +140,17 @@ async def handle_list_tools() -> List[types.Tool]:
                 "required": ["id"]
             }
         ),
+
+        # Worker tools
+        types.Tool(
+            name="list_available_actions",
+            description="List actions (or workers) from all worker-sets",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        ),
         
         # Workflow tools
         types.Tool(

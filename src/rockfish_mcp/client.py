@@ -73,6 +73,36 @@ class RockfishClient:
         elif tool_name == "get_worker_set_actions":
             ws_id = arguments["id"]
             return await self._request("GET", f"/worker-set/{ws_id}/actions")
+
+        elif tool_name == "list_available_actions":
+            all_worker_sets = await self._request("GET", "/worker-set")
+            filtered_worker_set_ids = []
+            for ws_info in all_worker_sets:
+                if "id" in ws_info and "name" in ws_info:
+                    ws_id = ws_info["id"]
+                    ws_name = ws_info["name"]
+                    if "dev" not in ws_name:
+                        filtered_worker_set_ids.append(ws_id)
+
+            worker_meta = set()
+            workers = []
+            for ws_id in filtered_worker_set_ids:
+                try:
+                    response = await self._request("GET", f"/worker-set/{ws_id}/actions")
+                    for act in response["actions"]:
+                        name = act["name"]
+                        vers = act["version"]
+                        ws_id = f"{name}_v{vers}"
+                        if ws_id not in worker_meta:
+                            workers.append(act)
+                        else:
+                            worker_meta.add(ws_id)
+                except Exception:
+                    continue
+
+            return {
+                "actions": workers
+            }
         
         # Workflow endpoints
         elif tool_name == "list_workflows":
