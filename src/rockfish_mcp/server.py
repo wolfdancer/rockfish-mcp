@@ -357,6 +357,19 @@ async def handle_list_tools() -> List[types.Tool]:
                 "required": ["id"]
             }
         ),
+
+        # Dataset schema tools
+        types.Tool(
+            name="get_dataset_schema",
+            description="Get the schema for a dataset",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "Dataset ID"}
+                },
+                "required": ["id"]
+            }
+        ),
         
         # Query tools
         types.Tool(

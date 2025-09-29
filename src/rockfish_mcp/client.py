@@ -170,7 +170,12 @@ class RockfishClient:
         elif tool_name == "delete_dataset":
             dataset_id = arguments["id"]
             return await self._request("DELETE", f"/dataset/{dataset_id}")
-        
+
+        # Dataset schema endpoints
+        elif tool_name == "get_dataset_schema":
+            dataset_id = arguments["id"]
+            return await self._request("GET", f"/dataset/{dataset_id}/schema")
+
         # Query endpoints
         elif tool_name == "execute_query":
             query = arguments["query"]
