@@ -129,6 +129,17 @@ async def handle_list_tools() -> List[types.Tool]:
                 "required": ["id"]
             }
         ),
+        types.Tool(
+            name="get_worker_set_actions",
+            description="List the actions for a worker-set",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "Worker set ID"}
+                },
+                "required": ["id"]
+            }
+        ),
         
         # Workflow tools
         types.Tool(

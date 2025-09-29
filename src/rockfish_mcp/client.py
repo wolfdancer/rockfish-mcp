@@ -69,6 +69,10 @@ class RockfishClient:
         elif tool_name == "delete_worker_set":
             ws_id = arguments["id"]
             return await self._request("DELETE", f"/worker-set/{ws_id}")
+
+        elif tool_name == "get_worker_set_actions":
+            ws_id = arguments["id"]
+            return await self._request("GET", f"/worker-set/{ws_id}/actions")
         
         # Workflow endpoints
         elif tool_name == "list_workflows":
