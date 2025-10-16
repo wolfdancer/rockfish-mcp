@@ -303,6 +303,26 @@ async def handle_list_tools() -> List[types.Tool]:
                 "required": ["id"]
             }
         ),
+
+        # Organization tools
+        types.Tool(
+            name="get_active_organization",
+            description="Get active organization",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        ),
+        types.Tool(
+            name="list_organizations",
+            description="List all organizations",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        ),
         
         # Project tools
         types.Tool(
@@ -491,12 +511,19 @@ async def main():
     # Initialize Rockfish client
     api_key = os.getenv("ROCKFISH_API_KEY")
     base_url = os.getenv("ROCKFISH_BASE_URL", "https://api.rockfish.ai")
+    organization_id = os.getenv("ROCKFISH_ORGANIZATION_ID", None)
+    project_id = os.getenv("ROCKFISH_PROJECT_ID", None)
     
     if not api_key:
         logger.error("ROCKFISH_API_KEY environment variable is required")
         return
         
-    rockfish_client = RockfishClient(api_key=api_key, base_url=base_url)
+    rockfish_client = RockfishClient(
+        api_key=api_key,
+        base_url=base_url,
+        organization_id=organization_id,
+        project_id=project_id
+    )
     
     # Run the server
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):

@@ -11,13 +11,19 @@ logger = logging.getLogger(__name__)
 class RockfishClient:
     """Client for interacting with the Rockfish API."""
     
-    def __init__(self, api_key: str, base_url: str = "https://api.rockfish.ai"):
+    def __init__(self, api_key: str, base_url: str = "https://api.rockfish.ai", organization_id=None, project_id=None):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
+
+        if organization_id:
+            self.headers["X-Organization-ID"] = organization_id
+
+        if project_id:
+            self.headers["X-Project-ID"] = project_id
     
     async def _request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """Make an HTTP request to the Rockfish API."""
@@ -75,30 +81,13 @@ class RockfishClient:
             return await self._request("GET", f"/worker-set/{ws_id}/actions")
 
         elif tool_name == "list_available_actions":
-            all_worker_sets = await self._request("GET", "/worker-set")
-            filtered_worker_set_ids = []
-            for ws_info in all_worker_sets:
-                if "id" in ws_info and "name" in ws_info:
-                    ws_id = ws_info["id"]
-                    ws_name = ws_info["name"]
-                    if "dev" not in ws_name:
-                        filtered_worker_set_ids.append(ws_id)
+            worker_groups = await self._request("GET", "/worker-group")
 
-            worker_meta = set()
             workers = []
-            for ws_id in filtered_worker_set_ids:
-                try:
-                    response = await self._request("GET", f"/worker-set/{ws_id}/actions")
-                    for act in response["actions"]:
-                        name = act["name"]
-                        vers = act["version"]
-                        ws_id = f"{name}_v{vers}"
-                        if ws_id not in worker_meta:
-                            workers.append(act)
-                        else:
-                            worker_meta.add(ws_id)
-                except Exception:
-                    continue
+            for group in worker_groups.get("groups", []):
+                if "actions" in group:
+                    current_actions = group.get("actions")
+                    workers.extend(current_actions)
 
             return {
                 "actions": workers
@@ -133,6 +122,13 @@ class RockfishClient:
         elif tool_name == "delete_model":
             model_id = arguments["id"]
             return await self._request("DELETE", f"/models/{model_id}")
+
+        # Organization endpoints
+        elif tool_name == "get_active_organization":
+            return await self._request("GET", "/organization/active")
+
+        elif tool_name == "list_organizations":
+            return await self._request("GET", "/organization")
         
         # Project endpoints
         elif tool_name == "get_active_project":
