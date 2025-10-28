@@ -15,10 +15,12 @@ This MCP server provides tools for the following Rockfish resources:
 
 ## Installation
 
-1. Clone the repository:
+1. Clone the repository and set up your virtual environment (Python 3.12 or below):
 ```bash
 git clone https://github.com/yourusername/rockfish-mcp.git
 cd rockfish-mcp
+python3.11 -m venv venv
+source venv/bin/activate
 ```
 
 2. Install dependencies:
@@ -41,6 +43,14 @@ ROCKFISH_API_KEY=your_api_key_here
 ROCKFISH_BASE_URL=https://api.rockfish.ai
 ```
 
+If you want to use a specific Rockfish Organization and/or Rockfish Project, 
+add the following to the `.env` file too: 
+
+```env
+ROCKFISH_ORGANIZATION_ID=your_organization_id_here
+ROCKFISH_PROJECT_ID=your_project_id_here
+```
+
 ## Usage
 
 Run the MCP server:
@@ -59,9 +69,11 @@ rockfish-mcp
 
 To use this MCP server with Claude Desktop:
 
-1. **Complete the installation steps above** (clone, install dependencies, set up .env file). 
+1. **Complete some of the installation steps above** (clone, install dependencies). 
 Note that you do not need to start the MCP server manually for using it with Claude Desktop.
 Claude Desktop will automatically start it for you when you follow the steps below.
+Also, the .env file doesn't need to be created, we will be adding the environment 
+variables to the Claude setup.
 
 2. **Find your Claude Desktop configuration directory:**
    - **macOS**: `~/Library/Application Support/Claude/`
@@ -69,6 +81,10 @@ Claude Desktop will automatically start it for you when you follow the steps bel
    - **Linux**: `~/.config/Claude/`
 
 3. **Create or edit the `claude_desktop_config.json` file** in that directory:
+
+Note that setting `ROCKFISH_ORGANIZATION_ID` and `ROCKFISH_PROJECT_ID` is optional.
+If you don't set these variables, the default organization and/or default project
+will be used.
 
 ```json
 {
@@ -78,7 +94,9 @@ Claude Desktop will automatically start it for you when you follow the steps bel
       "args": ["-m", "rockfish_mcp.server"],
       "env": {
         "ROCKFISH_API_KEY": "your_api_key_here",
-        "ROCKFISH_BASE_URL": "https://api.rockfish.ai"
+        "ROCKFISH_BASE_URL": "https://api.rockfish.ai",
+        "ROCKFISH_ORGANIZATION_ID": "your_organization_id_here",
+        "ROCKFISH_PROJECT_ID": "your_project_id_here"
       }
     }
   }
@@ -89,6 +107,8 @@ Claude Desktop will automatically start it for you when you follow the steps bel
    - Replace `/path/to/your/project/.venv/bin/python` with the actual path to your Python executable
    - Replace `your_api_key_here` with your actual Rockfish API key
    - Adjust `ROCKFISH_BASE_URL` if you're using a different endpoint
+   - Adjust `ROCKFISH_ORGANIZATION_ID` if you're using a different organization other than the default one
+   - Adjust `ROCKFISH_PROJECT_ID` if you're using a different project other than the default one
 
 5. **Get the correct Python path** by running this command in your project directory:
 ```bash
@@ -200,6 +220,10 @@ chmod +x test-mcp.sh
 - `upload_model`: Upload a new model
 - `get_model`: Get a specific model by ID
 - `delete_model`: Delete a model
+
+### Organization Tools
+- `get_active_organization`: Get the currently active organization
+- `list_projects`: List all organizations
 
 ### Project Tools
 - `get_active_project`: Get the currently active project
