@@ -12,6 +12,7 @@ from mcp.server.models import InitializationOptions
 import mcp.server.stdio
 
 from .client import RockfishClient
+from .manta_client import MantaClient
 
 load_dotenv()
 
@@ -19,13 +20,14 @@ logger = logging.getLogger("rockfish-mcp")
 
 server = Server("rockfish-mcp")
 
-# Global client instance
+# Global client instances
 rockfish_client: Optional[RockfishClient] = None
+manta_client: Optional[MantaClient] = None
 
 
 @server.list_tools()
 async def handle_list_tools() -> List[types.Tool]:
-    """List available Rockfish API tools."""
+    """List available Rockfish API and Manta service tools."""
     tools = [
         # Database tools
         types.Tool(
@@ -478,7 +480,197 @@ async def handle_list_tools() -> List[types.Tool]:
             }
         )
     ]
-    
+
+    # Add Manta tools only if Manta client is initialized
+    if manta_client:
+        manta_tools = [
+            # Manta Service - Prompt Management tools
+            types.Tool(
+            name="manta_get_prompts",
+            description="Get natural language prompts and expected answers for a dataset",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "string", "description": "Dataset ID to get prompts for"},
+                    "organization_id": {"type": "string", "description": "Organization ID (required by Manta API)"},
+                    "project_id": {"type": "string", "description": "Project ID (required by Manta API)"}
+                },
+                "required": ["dataset_id", "organization_id", "project_id"]
+            }
+        ),
+        types.Tool(
+            name="manta_create_prompts",
+            description="Create prompts and answers for a dataset",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "string", "description": "Dataset ID to create prompts for"},
+                    "organization_id": {"type": "string", "description": "Organization ID (required by Manta API)"},
+                    "project_id": {"type": "string", "description": "Project ID (required by Manta API)"}
+                },
+                "required": ["dataset_id", "organization_id", "project_id"]
+            }
+        ),
+        types.Tool(
+            name="manta_append_prompts",
+            description="Append prompts to an existing dataset prompt collection",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "string", "description": "Dataset ID to append prompts to"},
+                    "organization_id": {"type": "string", "description": "Organization ID (required by Manta API)"},
+                    "project_id": {"type": "string", "description": "Project ID (required by Manta API)"}
+                },
+                "required": ["dataset_id", "organization_id", "project_id"]
+            }
+        ),
+        types.Tool(
+            name="manta_evaluate_test_case",
+            description="Compare actual vs expected results for test validation",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "prompt": {"type": "string", "description": "The prompt/question that was asked"},
+                    "actual_result": {"type": "string", "description": "The actual result obtained"},
+                    "expected_result": {"type": "string", "description": "The expected result"},
+                    "organization_id": {"type": "string", "description": "Organization ID (required by Manta API)"},
+                    "project_id": {"type": "string", "description": "Project ID (required by Manta API)"}
+                },
+                "required": ["prompt", "actual_result", "expected_result", "organization_id", "project_id"]
+            }
+        ),
+
+        # Manta Service - Data Manipulation tools (Incident Injection)
+        types.Tool(
+            name="manta_create_instantaneous_spike",
+            description="Create a modified dataset with an instantaneous spike incident injected",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "string", "description": "Original dataset ID"},
+                    "incident_config": {
+                        "type": "object",
+                        "description": "Configuration for the spike incident",
+                        "properties": {
+                            "metadata_predicates": {"type": "object", "description": "Metadata filters to select time series"},
+                            "measurements": {"type": "array", "items": {"type": "string"}, "description": "List of measurements to inject spike into"},
+                            "incident_start_timestamp": {"type": "string", "description": "ISO timestamp when spike occurs"},
+                            "magnitude": {"type": "number", "description": "Magnitude of the spike"}
+                        }
+                    },
+                    "organization_id": {"type": "string", "description": "Organization ID (required by Manta API)"},
+                    "project_id": {"type": "string", "description": "Project ID (required by Manta API)"}
+                },
+                "required": ["dataset_id", "incident_config", "organization_id", "project_id"]
+            }
+        ),
+        types.Tool(
+            name="manta_create_sustained_magnitude_change",
+            description="Create a modified dataset with a sustained magnitude change incident",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "string", "description": "Original dataset ID"},
+                    "incident_config": {
+                        "type": "object",
+                        "description": "Configuration for the sustained magnitude change",
+                        "properties": {
+                            "metadata_predicates": {"type": "object", "description": "Metadata filters to select time series"},
+                            "measurements": {"type": "array", "items": {"type": "string"}, "description": "List of measurements to modify"},
+                            "incident_start_timestamp": {"type": "string", "description": "ISO timestamp when change starts"},
+                            "incident_end_timestamp": {"type": "string", "description": "ISO timestamp when change ends"},
+                            "magnitude": {"type": "number", "description": "Magnitude of the change"}
+                        }
+                    },
+                    "organization_id": {"type": "string", "description": "Organization ID (required by Manta API)"},
+                    "project_id": {"type": "string", "description": "Project ID (required by Manta API)"}
+                },
+                "required": ["dataset_id", "incident_config", "organization_id", "project_id"]
+            }
+        ),
+        types.Tool(
+            name="manta_create_data_outage",
+            description="Create a modified dataset with a data outage incident (missing data)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "string", "description": "Original dataset ID"},
+                    "incident_config": {
+                        "type": "object",
+                        "description": "Configuration for the data outage",
+                        "properties": {
+                            "metadata_predicates": {"type": "object", "description": "Metadata filters to select time series"},
+                            "measurements": {"type": "array", "items": {"type": "string"}, "description": "List of measurements to create outage for"},
+                            "incident_start_timestamp": {"type": "string", "description": "ISO timestamp when outage starts"},
+                            "incident_end_timestamp": {"type": "string", "description": "ISO timestamp when outage ends"}
+                        }
+                    },
+                    "organization_id": {"type": "string", "description": "Organization ID (required by Manta API)"},
+                    "project_id": {"type": "string", "description": "Project ID (required by Manta API)"}
+                },
+                "required": ["dataset_id", "incident_config", "organization_id", "project_id"]
+            }
+        ),
+        types.Tool(
+            name="manta_create_value_ramp",
+            description="Create a modified dataset with a value ramp incident (gradual increase/decrease)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "string", "description": "Original dataset ID"},
+                    "incident_config": {
+                        "type": "object",
+                        "description": "Configuration for the value ramp",
+                        "properties": {
+                            "metadata_predicates": {"type": "object", "description": "Metadata filters to select time series"},
+                            "measurements": {"type": "array", "items": {"type": "string"}, "description": "List of measurements to apply ramp to"},
+                            "incident_start_timestamp": {"type": "string", "description": "ISO timestamp when ramp starts"},
+                            "incident_end_timestamp": {"type": "string", "description": "ISO timestamp when ramp ends"},
+                            "magnitude": {"type": "number", "description": "Total magnitude change over the ramp period"}
+                        }
+                    },
+                    "organization_id": {"type": "string", "description": "Organization ID (required by Manta API)"},
+                    "project_id": {"type": "string", "description": "Project ID (required by Manta API)"}
+                },
+                "required": ["dataset_id", "incident_config", "organization_id", "project_id"]
+            }
+        ),
+        types.Tool(
+            name="manta_get_incident_dataset_ids",
+            description="Get all incident dataset IDs associated with an original dataset",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "string", "description": "Original dataset ID"},
+                    "organization_id": {"type": "string", "description": "Organization ID (required by Manta API)"},
+                    "project_id": {"type": "string", "description": "Project ID (required by Manta API)"}
+                },
+                "required": ["dataset_id", "organization_id", "project_id"]
+            }
+        ),
+
+        # Manta Service - LLM Processing tools
+        types.Tool(
+            name="manta_process_llm_questions",
+            description="Process natural language questions using SQL Agent functionality against a dataset",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "string", "description": "Dataset ID to query"},
+                    "questions": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Array of natural language questions to process"
+                    },
+                    "organization_id": {"type": "string", "description": "Organization ID (required by Manta API)"},
+                    "project_id": {"type": "string", "description": "Project ID (required by Manta API)"}
+                },
+                "required": ["dataset_id", "questions", "organization_id", "project_id"]
+            }
+        )
+        ]
+        tools.extend(manta_tools)
+
     return tools
 
 
@@ -486,44 +678,74 @@ async def handle_list_tools() -> List[types.Tool]:
 async def handle_call_tool(
     name: str, arguments: Dict[str, Any]
 ) -> List[types.TextContent]:
-    """Handle tool calls to Rockfish API."""
-    
+    """Handle tool calls to Rockfish API and Manta service."""
+
+    # Route Manta tools to manta_client
+    if name.startswith("manta_"):
+        if not manta_client:
+            return [types.TextContent(
+                type="text",
+                text="Manta client not initialized. Please check your API credentials."
+            )]
+
+        try:
+            result = await manta_client.call_endpoint(name, arguments)
+            return [types.TextContent(type="text", text=str(result))]
+        except Exception as e:
+            logger.error(f"Error calling {name}: {e}")
+            return [types.TextContent(
+                type="text",
+                text=f"Error calling {name}: {str(e)}"
+            )]
+
+    # Route all other tools to rockfish_client
     if not rockfish_client:
         return [types.TextContent(
-            type="text", 
+            type="text",
             text="Rockfish client not initialized. Please check your API credentials."
         )]
-    
+
     try:
         result = await rockfish_client.call_endpoint(name, arguments)
         return [types.TextContent(type="text", text=str(result))]
     except Exception as e:
         logger.error(f"Error calling {name}: {e}")
         return [types.TextContent(
-            type="text", 
+            type="text",
             text=f"Error calling {name}: {str(e)}"
         )]
 
 
 async def main():
-    global rockfish_client
-    
+    global rockfish_client, manta_client
+
     # Initialize Rockfish client
     api_key = os.getenv("ROCKFISH_API_KEY")
     base_url = os.getenv("ROCKFISH_BASE_URL", "https://api.rockfish.ai")
     organization_id = os.getenv("ROCKFISH_ORGANIZATION_ID", None)
     project_id = os.getenv("ROCKFISH_PROJECT_ID", None)
-    
+
     if not api_key:
         logger.error("ROCKFISH_API_KEY environment variable is required")
         return
-        
+
     rockfish_client = RockfishClient(
         api_key=api_key,
         base_url=base_url,
         organization_id=organization_id,
         project_id=project_id
     )
+
+    # Initialize Manta client only if MANTA_BASE_URL is configured
+    manta_base_url = os.getenv("MANTA_BASE_URL")
+    if manta_base_url:
+        manta_client = MantaClient(
+            api_key=api_key,
+            base_url=manta_base_url
+        )
+        logger.info(f"Manta client initialized with base URL: {manta_base_url}")
+    else:
+        logger.info("Manta client not initialized (MANTA_BASE_URL not set)")
     
     # Run the server
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
