@@ -12,6 +12,9 @@ This MCP server provides tools for the following Rockfish resources:
 - **Models**: Upload, list, and manage ML models
 - **Projects**: Organize and manage projects
 - **Datasets**: Create and manage datasets
+- **Organizations**: View and manage organizations
+
+**Architecture**: Uses a hybrid approach with the official Rockfish Python SDK for most operations (providing better type safety and future-proofing), with HTTP/REST API fallback for operations not supported by the SDK.
 
 ## Installation
 
@@ -23,10 +26,16 @@ python3.11 -m venv venv
 source venv/bin/activate
 ```
 
-2. Install dependencies:
+2. Install dependencies (includes official Rockfish SDK):
 ```bash
 pip install -e .
 ```
+
+The installation includes:
+- `mcp` - Model Context Protocol framework
+- `httpx` - HTTP client for API calls
+- `rockfish[labs]` - Official Rockfish Python SDK (for most operations)
+- `pydantic` - Data validation
 
 3. Set up environment variables:
 ```bash

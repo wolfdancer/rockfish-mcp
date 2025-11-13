@@ -11,7 +11,8 @@ from mcp.server import NotificationOptions, Server
 from mcp.server.models import InitializationOptions
 import mcp.server.stdio
 
-from .client import RockfishClient
+from .client import RockfishHTTPClient
+from .sdk_client import RockfishSDKClient
 from .manta_client import MantaClient
 
 load_dotenv()
@@ -21,8 +22,9 @@ logger = logging.getLogger("rockfish-mcp")
 server = Server("rockfish-mcp")
 
 # Global client instances
-rockfish_client: Optional[RockfishClient] = None
-manta_client: Optional[MantaClient] = None
+http_client: Optional[RockfishHTTPClient] = None  # HTTP/REST API (fallback)
+sdk_client: Optional[RockfishSDKClient] = None     # Official SDK (primary)
+manta_client: Optional[MantaClient] = None         # Manta service
 
 
 @server.list_tools()
@@ -678,38 +680,92 @@ async def handle_list_tools() -> List[types.Tool]:
 async def handle_call_tool(
     name: str, arguments: Dict[str, Any]
 ) -> List[types.TextContent]:
-    """Handle tool calls to Rockfish API and Manta service."""
+    """Handle tool calls - routes to appropriate client (Manta, SDK, or HTTP)."""
 
-    # Route Manta tools to manta_client
+    # Route 1: Manta tools
     if name.startswith("manta_"):
         if not manta_client:
             return [types.TextContent(
                 type="text",
-                text="Manta client not initialized. Please check your API credentials."
+                text="Manta client not initialized. Check MANTA_API_URL environment variable."
             )]
 
         try:
             result = await manta_client.call_endpoint(name, arguments)
             return [types.TextContent(type="text", text=str(result))]
         except Exception as e:
-            logger.error(f"Error calling {name}: {e}")
+            logger.error(f"Manta error calling {name}: {e}")
             return [types.TextContent(
                 type="text",
                 text=f"Error calling {name}: {str(e)}"
             )]
 
-    # Route all other tools to rockfish_client
-    if not rockfish_client:
+    # Route 2: HTTP-only tools (operations SDK cannot handle)
+    http_only_tools = [
+        # Databases (5)
+        "list_databases", "create_database", "get_database",
+        "update_database", "delete_database",
+
+        # Worker Sets (6)
+        "list_worker_sets", "create_worker_set", "get_worker_set",
+        "delete_worker_set", "get_worker_set_actions", "list_available_actions",
+
+        # Dataset operations requiring complex objects (3)
+        "create_dataset", "update_dataset", "get_dataset_schema",
+
+        # Model operations requiring complex objects (2)
+        "upload_model", "delete_model",
+
+        # Project update (1)
+        "update_project"
+    ]
+
+    if name in http_only_tools:
+        if not http_client:
+            return [types.TextContent(
+                type="text",
+                text="HTTP client not initialized. Please check your API credentials."
+            )]
+
+        try:
+            result = await http_client.call_endpoint(name, arguments)
+            return [types.TextContent(type="text", text=str(result))]
+        except Exception as e:
+            logger.error(f"HTTP error calling {name}: {e}")
+            return [types.TextContent(
+                type="text",
+                text=f"Error calling {name}: {str(e)}"
+            )]
+
+    # Route 3: SDK tools (all other Rockfish operations - preferred)
+    if not sdk_client:
         return [types.TextContent(
             type="text",
-            text="Rockfish client not initialized. Please check your API credentials."
+            text="SDK client not initialized. Please check your API credentials."
         )]
 
     try:
-        result = await rockfish_client.call_endpoint(name, arguments)
+        result = await sdk_client.call_endpoint(name, arguments)
         return [types.TextContent(type="text", text=str(result))]
+    except NotImplementedError as e:
+        # Fallback to HTTP client if SDK doesn't support the operation
+        logger.warning(f"SDK doesn't support {name}, falling back to HTTP client")
+        if http_client:
+            try:
+                result = await http_client.call_endpoint(name, arguments)
+                return [types.TextContent(type="text", text=str(result))]
+            except Exception as http_error:
+                logger.error(f"HTTP fallback error calling {name}: {http_error}")
+                return [types.TextContent(
+                    type="text",
+                    text=f"Error calling {name}: {str(http_error)}"
+                )]
+        return [types.TextContent(
+            type="text",
+            text=f"Operation not supported: {str(e)}"
+        )]
     except Exception as e:
-        logger.error(f"Error calling {name}: {e}")
+        logger.error(f"SDK error calling {name}: {e}")
         return [types.TextContent(
             type="text",
             text=f"Error calling {name}: {str(e)}"
@@ -717,35 +773,41 @@ async def handle_call_tool(
 
 
 async def main():
-    global rockfish_client, manta_client
+    global http_client, sdk_client, manta_client
 
-    # Initialize Rockfish client
+    # Check for required API key
     api_key = os.getenv("ROCKFISH_API_KEY")
-    base_url = os.getenv("ROCKFISH_BASE_URL", "https://api.rockfish.ai")
-    organization_id = os.getenv("ROCKFISH_ORGANIZATION_ID", None)
-    project_id = os.getenv("ROCKFISH_PROJECT_ID", None)
-
     if not api_key:
         logger.error("ROCKFISH_API_KEY environment variable is required")
         return
 
-    rockfish_client = RockfishClient(
+    # Initialize SDK client (primary) - uses Connection.from_env()
+    sdk_client = RockfishSDKClient()
+    logger.info("SDK client initialized from environment")
+
+    # Initialize HTTP client (fallback for SDK-unsupported operations)
+    api_url = os.getenv("ROCKFISH_API_URL", "https://api.rockfish.ai")
+    organization_id = os.getenv("ROCKFISH_ORGANIZATION_ID", None)
+    project_id = os.getenv("ROCKFISH_PROJECT_ID", None)
+
+    http_client = RockfishHTTPClient(
         api_key=api_key,
-        base_url=base_url,
+        api_url=api_url,
         organization_id=organization_id,
         project_id=project_id
     )
+    logger.info("HTTP client initialized")
 
-    # Initialize Manta client only if MANTA_BASE_URL is configured
-    manta_base_url = os.getenv("MANTA_BASE_URL")
-    if manta_base_url:
+    # Initialize Manta client only if MANTA_API_URL is configured
+    manta_api_url = os.getenv("MANTA_API_URL")
+    if manta_api_url:
         manta_client = MantaClient(
             api_key=api_key,
-            base_url=manta_base_url
+            api_url=manta_api_url
         )
-        logger.info(f"Manta client initialized with base URL: {manta_base_url}")
+        logger.info(f"Manta client initialized with base URL: {manta_api_url}")
     else:
-        logger.info("Manta client not initialized (MANTA_BASE_URL not set)")
+        logger.info("Manta client not initialized (MANTA_API_URL not set)")
     
     # Run the server
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
