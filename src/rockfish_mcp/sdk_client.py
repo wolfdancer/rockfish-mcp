@@ -203,7 +203,7 @@ class RockfishSDKClient:
             }
 
         # Tabular dataset properties extraction (SDK workflow-based)
-        elif tool_name == "extract_tabular_properties_sdk":
+        elif tool_name == "extract_tabular_properties":
             dataset_id = arguments["dataset_id"]
             detect_pii = arguments.get("detect_pii", False)
             detect_association_rules = arguments.get("detect_association_rules", False)
