@@ -1,6 +1,8 @@
 import logging
 from typing import Any, Dict
 import rockfish as rf
+import rockfish.labs
+import rockfish.actions as ra
 from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
@@ -26,7 +28,7 @@ class RockfishSDKClient:
     async def _get_connection(self):
         """Get or create a connection instance."""
         if self._conn is None:
-            self._conn = rf.Connection.from_env()
+            self._conn = rf.Connection.from_env() # TODO: use the same way to get api key, api url as HTTP client?
             logger.info("SDK connection initialized from environment")
         return self._conn
 
@@ -106,8 +108,8 @@ class RockfishSDKClient:
             limit = arguments.get("limit", 10)
             async for workflow in conn.workflows(limit=limit):
                 workflows.append({
-                    "id": workflow.id,
-                    "status": workflow.status,
+                    "id": workflow.id(),
+                    "status": await workflow.status(),
                 })
             return {"workflows": workflows}
 
@@ -125,12 +127,12 @@ class RockfishSDKClient:
                 name=name,
                 labels=labels
             )
-            return {"id": workflow.id, "status": workflow.status}
+            return {"id": workflow.id(), "status": await workflow.status()}
 
         elif tool_name == "get_workflow":
             workflow_id = arguments["id"]
             workflow = await conn.get_workflow(workflow_id)
-            return {"id": workflow.id, "status": workflow.status}
+            return {"id": workflow.id(), "status": await workflow.status()}
 
         elif tool_name == "update_workflow":
             workflow_id = arguments.pop("id")
@@ -198,6 +200,54 @@ class RockfishSDKClient:
                 "labels": model.labels,
                 "created_at": model.create_time.isoformat() if model.create_time else None,
                 "size_bytes": model.size_bytes,
+            }
+
+        # Tabular dataset properties extraction (SDK workflow-based)
+        elif tool_name == "extract_tabular_properties_sdk":
+            dataset_id = arguments["dataset_id"]
+            detect_pii = arguments.get("detect_pii", False)
+            detect_association_rules = arguments.get("detect_association_rules", False)
+            association_threshold = arguments.get("association_threshold", 0.95)
+
+            # Build workflow: DatasetLoad → TabPropertyExtractor → DatasetSave
+            builder = rf.WorkflowBuilder()
+            dataset_load = ra.DatasetLoad(dataset_id=dataset_id)
+            extract_tab_props = ra.TabPropertyExtractor(
+                detect_pii=detect_pii,
+                detect_association_rules=detect_association_rules,
+                association_threshold=association_threshold,
+            )
+            dataset_save = ra.DatasetSave(name=f"dataset_{dataset_id}_with_props")
+
+            builder.add_path(dataset_load, extract_tab_props, dataset_save)
+            workflow = await builder.start(conn)
+            logger.info(f"Started property extraction workflow: {workflow.id()}")
+
+            # Wait for workflow completion
+            await workflow.wait(raise_on_failure=True)
+            logger.info(f"Workflow {workflow.id()} completed successfully")
+
+            # Extract properties from resulting dataset
+            # TODO: maybe workflow.datasets().first()?
+            dataset = None
+            async for ds in workflow.datasets():
+                dataset_with_props_id = ds.id
+                dataset = await ds.to_local(conn)
+            dataset_properties = dataset.table_metadata().dataset_properties
+
+            # Extract field properties for all fields
+            field_properties_map = {}
+            for field in dataset.table.schema:
+                field_name = field.name
+                field_properties = dataset.get_field_properties(field_name)
+                field_properties_map[field_name] = field_properties
+
+            # Return unstructured data (convert to dicts)
+            return {
+                "dataset_properties": rf.converter.unstructure(dataset_properties),
+                "field_properties_map": rf.converter.unstructure(field_properties_map),
+                "workflow_id": workflow.id(),
+                "output_dataset_id": dataset_with_props_id
             }
 
         # Operations not supported by SDK - should use HTTP client instead

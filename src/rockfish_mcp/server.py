@@ -14,6 +14,7 @@ import mcp.server.stdio
 from .client import RockfishHTTPClient
 from .sdk_client import RockfishSDKClient
 from .manta_client import MantaClient
+from .recommender_client import RecommenderClient
 
 load_dotenv()
 
@@ -25,11 +26,12 @@ server = Server("rockfish-mcp")
 http_client: Optional[RockfishHTTPClient] = None  # HTTP/REST API (fallback)
 sdk_client: Optional[RockfishSDKClient] = None     # Official SDK (primary)
 manta_client: Optional[MantaClient] = None         # Manta service
+recommender_client: Optional[RecommenderClient] = None  # Recommender service
 
 
 @server.list_tools()
 async def handle_list_tools() -> List[types.Tool]:
-    """List available Rockfish API and Manta service tools."""
+    """List available Rockfish API, Manta service, and Recommender service tools."""
     tools = [
         # Database tools
         types.Tool(
@@ -454,7 +456,39 @@ async def handle_list_tools() -> List[types.Tool]:
                 "required": ["id"]
             }
         ),
-        
+
+        # Dataset properties extraction (SDK workflow-based)
+        types.Tool(
+            name="extract_tabular_properties_sdk",
+            description="Extract tabular dataset properties using SDK workflows (PII detection, association rules, field types). "
+            "Creates a workflow that loads the dataset, extracts properties, and returns both dataset-level and field-level properties.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {
+                        "type": "string",
+                        "description": "ID of the dataset to analyze"
+                    },
+                    "detect_pii": {
+                        "type": "boolean",
+                        "description": "Whether to detect personally identifiable information (PII)",
+                        "default": False
+                    },
+                    "detect_association_rules": {
+                        "type": "boolean",
+                        "description": "Whether to detect field association rules",
+                        "default": False
+                    },
+                    "association_threshold": {
+                        "type": "number",
+                        "description": "Threshold for association rule detection (0-1)",
+                        "default": 0.95
+                    }
+                },
+                "required": ["dataset_id"]
+            }
+        ),
+
         # Query tools
         types.Tool(
             name="execute_query",
@@ -673,6 +707,140 @@ async def handle_list_tools() -> List[types.Tool]:
         ]
         tools.extend(manta_tools)
 
+    # Recommender tools (always available - uses main Rockfish API)
+    recommender_tools = [
+        types.Tool(
+            name="recommender_generate_workflow",
+            description="Generate a training workflow for a given model",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_name": {"type": "string", "description": "Name for the generated dataset"},
+                    "model_id": {"type": "string", "description": "ID of the model to use for generation"},
+                    "sample_size": {"type": "integer", "description": "Number of samples to generate"},
+                    "sample_matching_sql_query": {"type": "string", "description": "Optional SQL query to match sample distribution"}
+                },
+                "required": ["dataset_name", "model_id", "sample_size"]
+            }
+        ),
+        types.Tool(
+            name="recommender_evaluate_workflow",
+            description="Generate an evaluation workflow for datasets and metrics",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_ids": {"type": "array", "items": {"type": "string"}, "description": "List of dataset IDs to evaluate"},
+                    "metrics": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "metric_name": {"type": "string"},
+                                "metric_config": {"type": "object"}
+                            }
+                        },
+                        "description": "Optional list of metrics to compute"
+                    }
+                },
+                "required": ["dataset_ids"]
+            }
+        ),
+        types.Tool(
+            name="recommender_train_workflow",
+            description="Generate a training workflow for a dataset",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "string", "description": "ID of the dataset to train on"}
+                },
+                "required": ["dataset_id"]
+            }
+        ),
+        types.Tool(
+            name="recommender_concat_workflow",
+            description="Generate a concatenation workflow for multiple datasets",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_ids": {"type": "array", "items": {"type": "string"}, "description": "List of dataset IDs to concatenate"},
+                    "dataset_name": {"type": "string", "description": "Name for the concatenated dataset"}
+                },
+                "required": ["dataset_ids", "dataset_name"]
+            }
+        ),
+        types.Tool(
+            name="recommender_tabular_properties",
+            description="Detect and analyze properties of a tabular dataset",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "string", "description": "ID of the tabular dataset to analyze"},
+                    "detect_pii": {"type": "boolean", "description": "Whether to detect PII", "default": False},
+                    "detect_association_rules": {"type": "boolean", "description": "Whether to detect field associations", "default": False},
+                    "association_threshold": {"type": "number", "description": "Threshold for association rule detection (0-1)", "default": 0.95}
+                },
+                "required": ["dataset_id"]
+            }
+        ),
+        types.Tool(
+            name="recommender_timeseries_properties",
+            description="Detect and analyze properties of a timeseries dataset",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "string", "description": "ID of the timeseries dataset to analyze"},
+                    "timestamp": {"type": "string", "description": "Name of the timestamp field"},
+                    "session_fields": {"type": "array", "items": {"type": "string"}, "description": "Fields that define sessions", "default": []},
+                    "metadata_fields": {"type": "array", "items": {"type": "string"}, "description": "Fields that contain metadata", "default": []},
+                    "detect_pii": {"type": "boolean", "description": "Whether to detect PII", "default": False},
+                    "detect_metadata_fields": {"type": "boolean", "description": "Whether to auto-detect metadata fields", "default": False},
+                    "detect_association_rules": {"type": "boolean", "description": "Whether to detect field associations", "default": False},
+                    "association_threshold": {"type": "number", "description": "Threshold for association rule detection (0-1)", "default": 0.95}
+                },
+                "required": ["dataset_id", "timestamp"]
+            }
+        ),
+        types.Tool(
+            name="recommender_dataset_fidelity_score",
+            description="Calculate fidelity scores between datasets using SQL queries (minimum 2 datasets required)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 2,
+                        "description": "List of dataset IDs to compare (minimum 2)"
+                    }
+                },
+                "required": ["dataset_ids"]
+            }
+        ),
+        types.Tool(
+            name="recommender_sql_fidelity_checks",
+            description="Get recommended SQL queries for fidelity checking",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_ids": {"type": "array", "items": {"type": "string"}, "description": "List of dataset IDs to generate checks for"}
+                },
+                "required": ["dataset_ids"]
+            }
+        ),
+        types.Tool(
+            name="recommender_generate_sources",
+            description="Generate data generation sources from natural language prompt",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "prompt": {"type": "string", "description": "Natural language description of what data you want to generate"}
+                },
+                "required": ["prompt"]
+            }
+        )
+    ]
+    tools.extend(recommender_tools)
+
     return tools
 
 
@@ -680,7 +848,7 @@ async def handle_list_tools() -> List[types.Tool]:
 async def handle_call_tool(
     name: str, arguments: Dict[str, Any]
 ) -> List[types.TextContent]:
-    """Handle tool calls - routes to appropriate client (Manta, SDK, or HTTP)."""
+    """Handle tool calls - routes to appropriate client (Manta, Recommender, SDK, or HTTP)."""
 
     # Route 1: Manta tools
     if name.startswith("manta_"):
@@ -700,7 +868,25 @@ async def handle_call_tool(
                 text=f"Error calling {name}: {str(e)}"
             )]
 
-    # Route 2: HTTP-only tools (operations SDK cannot handle)
+    # Route 2: Recommender tools
+    if name.startswith("recommender_"):
+        if not recommender_client:
+            return [types.TextContent(
+                type="text",
+                text="Recommender client not initialized. Check ROCKFISH_PROJECT_ID and ROCKFISH_ORGANIZATION_ID."
+            )]
+
+        try:
+            result = await recommender_client.call_endpoint(name, arguments)
+            return [types.TextContent(type="text", text=str(result))]
+        except Exception as e:
+            logger.error(f"Recommender error calling {name}: {e}")
+            return [types.TextContent(
+                type="text",
+                text=f"Error calling {name}: {str(e)}"
+            )]
+
+    # Route 3: HTTP-only tools (operations SDK cannot handle)
     http_only_tools = [
         # Databases (5)
         "list_databases", "create_database", "get_database",
@@ -773,7 +959,7 @@ async def handle_call_tool(
 
 
 async def main():
-    global http_client, sdk_client, manta_client
+    global http_client, sdk_client, manta_client, recommender_client
 
     # Check for required API key
     api_key = os.getenv("ROCKFISH_API_KEY")
@@ -797,6 +983,24 @@ async def main():
         project_id=project_id
     )
     logger.info("HTTP client initialized")
+
+    # Initialize Recommender client (can be customized with RECOMMENDER_API_URL)
+    recommender_api_url = os.getenv("RECOMMENDER_API_URL")
+    if recommender_api_url:
+        recommender_client = RecommenderClient(
+            api_key=api_key,
+            api_url=recommender_api_url,
+            organization_id=organization_id,
+            project_id=project_id
+        )
+        logger.info(f"Recommender client initialized with custom URL: {recommender_api_url}")
+    else:
+        recommender_client = RecommenderClient(
+            api_key=api_key,
+            organization_id=organization_id,
+            project_id=project_id
+        )
+        logger.info("Recommender client initialized with default URL")
 
     # Initialize Manta client only if MANTA_API_URL is configured
     manta_api_url = os.getenv("MANTA_API_URL")
