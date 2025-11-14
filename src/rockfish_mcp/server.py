@@ -585,7 +585,7 @@ async def handle_list_tools() -> List[types.Tool]:
 
         # Dataset properties extraction (SDK workflow-based)
         types.Tool(
-            name="extract_tabular_properties_sdk",
+            name="extract_tabular_properties",
             description="Extract tabular dataset properties using SDK workflows (PII detection, association rules, field types). "
             "Creates a workflow that loads the dataset, extracts properties, and returns both dataset-level and field-level properties.",
             inputSchema={
