@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import asyncio
+import json
 import logging
 from typing import Any, Dict, List, Optional
 import os
@@ -15,6 +16,8 @@ from .client import RockfishHTTPClient
 from .sdk_client import RockfishSDKClient
 from .manta_client import MantaClient
 from .recommender_client import RecommenderClient
+from .sda_client import SDAClient
+from .sdk_docstring_extractor import get_extractor
 
 load_dotenv()
 
@@ -27,6 +30,10 @@ http_client: Optional[RockfishHTTPClient] = None  # HTTP/REST API (fallback)
 sdk_client: Optional[RockfishSDKClient] = None     # Official SDK (primary)
 manta_client: Optional[MantaClient] = None         # Manta service
 recommender_client: Optional[RecommenderClient] = None  # Recommender service
+sda_client: Optional[SDAClient] = None             # SDA (Synthetic Data Assessment)
+
+# Initialize SDK docstring extractor
+extractor = get_extractor()
 
 
 @server.list_tools()
@@ -161,7 +168,10 @@ async def handle_list_tools() -> List[types.Tool]:
         # Workflow tools
         types.Tool(
             name="list_workflows",
-            description="List all workflows",
+            description=extractor.format_tool_description(
+                "List workflows in the active project",
+                "workflows"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {},
@@ -170,7 +180,10 @@ async def handle_list_tools() -> List[types.Tool]:
         ),
         types.Tool(
             name="create_workflow",
-            description="Create and run a new workflow",
+            description=extractor.format_tool_description(
+                "Create and execute a new workflow",
+                "create_workflow"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -242,7 +255,10 @@ async def handle_list_tools() -> List[types.Tool]:
         ),
         types.Tool(
             name="get_workflow",
-            description="Get a specific workflow by ID",
+            description=extractor.format_tool_description(
+                "Get a specific workflow by ID",
+                "get_workflow"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -252,8 +268,85 @@ async def handle_list_tools() -> List[types.Tool]:
             }
         ),
         types.Tool(
+            name="visualize_workflow",
+            description="Generate a Mermaid diagram visualization of a workflow showing job structure and status. "
+            "Returns a Mermaid markdown diagram with color-coded job states (blue=created, yellow=started, green=success, red=failure).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string", "description": "Workflow ID to visualize"},
+                    "direction": {
+                        "type": "string",
+                        "enum": ["LR", "TB"],
+                        "default": "LR",
+                        "description": "Graph direction: 'LR' for left-to-right (horizontal), 'TB' for top-to-bottom (vertical)"
+                    }
+                },
+                "required": ["id"]
+            }
+        ),
+        types.Tool(
+            name="visualize_workflow_builder",
+            description="Build and visualize a workflow structure WITHOUT executing it. "
+            "Generates a Mermaid diagram showing the planned workflow DAG structure using WorkflowBuilder. "
+            "Perfect for previewing, designing, and validating workflow architecture before execution.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "actions": {
+                        "type": "array",
+                        "description": "Array of action configurations to build the workflow",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "action_class": {
+                                    "type": "string",
+                                    "description": "SDK action class name (e.g., 'DatasetLoad', 'TabPropertyExtractor', 'Generate')"
+                                },
+                                "config": {
+                                    "type": "object",
+                                    "description": "Configuration parameters for the action"
+                                },
+                                "alias": {
+                                    "type": "string",
+                                    "description": "Optional alias for the action in the diagram"
+                                }
+                            },
+                            "required": ["action_class"]
+                        },
+                        "minItems": 1
+                    },
+                    "direction": {
+                        "type": "string",
+                        "enum": ["LR", "TB"],
+                        "default": "LR",
+                        "description": "Graph direction: 'LR' for left-to-right (horizontal), 'TB' for top-to-bottom (vertical)"
+                    }
+                },
+                "required": ["actions"]
+            }
+        ),
+        types.Tool(
+            name="plot_dataset_distribution",
+            description="Generate a distribution plot for a column in a dataset. "
+            "Returns a PNG image visualization showing the distribution (histogram for numerical data, bar chart for categorical data). "
+            "Uses the Rockfish SDK's rockfish.labs.vis.plot_distribution() function.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {"type": "string", "description": "Dataset ID to plot"},
+                    "column_name": {"type": "string", "description": "Column name to visualize"},
+                    "bins": {"type": "integer", "description": "Number of bins for histogram (numerical data only)", "default": 30}
+                },
+                "required": ["dataset_id", "column_name"]
+            }
+        ),
+        types.Tool(
             name="update_workflow",
-            description="Update a workflow",
+            description=extractor.format_tool_description(
+                "Update an existing workflow",
+                "update_workflow"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -268,7 +361,10 @@ async def handle_list_tools() -> List[types.Tool]:
         # Models tools
         types.Tool(
             name="list_models",
-            description="List all models",
+            description=extractor.format_tool_description(
+                "List all models in the active project",
+                "models"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {},
@@ -277,7 +373,7 @@ async def handle_list_tools() -> List[types.Tool]:
         ),
         types.Tool(
             name="upload_model",
-            description="Upload a new model",
+            description="Upload a new model\n\n**Note:** This operation uses HTTP API, not SDK.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -289,7 +385,10 @@ async def handle_list_tools() -> List[types.Tool]:
         ),
         types.Tool(
             name="get_model",
-            description="Get a specific model by ID",
+            description=extractor.format_tool_description(
+                "Get a specific model by ID",
+                "get_model"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -313,7 +412,10 @@ async def handle_list_tools() -> List[types.Tool]:
         # Organization tools
         types.Tool(
             name="get_active_organization",
-            description="Get active organization",
+            description=extractor.format_tool_description(
+                "Get the currently active organization",
+                "active_organization"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {},
@@ -322,7 +424,10 @@ async def handle_list_tools() -> List[types.Tool]:
         ),
         types.Tool(
             name="list_organizations",
-            description="List all organizations",
+            description=extractor.format_tool_description(
+                "List all organizations you have access to",
+                "organizations"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {},
@@ -333,7 +438,10 @@ async def handle_list_tools() -> List[types.Tool]:
         # Project tools
         types.Tool(
             name="get_active_project",
-            description="Get active project",
+            description=extractor.format_tool_description(
+                "Get the currently active project",
+                "active_project"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {},
@@ -342,7 +450,10 @@ async def handle_list_tools() -> List[types.Tool]:
         ),
         types.Tool(
             name="list_projects",
-            description="List all projects",
+            description=extractor.format_tool_description(
+                "List all projects in the active organization",
+                "projects"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {},
@@ -351,7 +462,10 @@ async def handle_list_tools() -> List[types.Tool]:
         ),
         types.Tool(
             name="create_project",
-            description="Create a new project",
+            description=extractor.format_tool_description(
+                "Create a new project in the active organization",
+                "create_project"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -363,7 +477,10 @@ async def handle_list_tools() -> List[types.Tool]:
         ),
         types.Tool(
             name="get_project",
-            description="Get a specific project by ID",
+            description=extractor.format_tool_description(
+                "Get a specific project by ID",
+                "projects"
+            ) + "\n\n**Note:** SDK implementation lists and filters projects.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -389,7 +506,10 @@ async def handle_list_tools() -> List[types.Tool]:
         # Dataset tools
         types.Tool(
             name="list_datasets",
-            description="List all datasets",
+            description=extractor.format_tool_description(
+                "List all datasets in the active project",
+                "datasets"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {},
@@ -398,7 +518,7 @@ async def handle_list_tools() -> List[types.Tool]:
         ),
         types.Tool(
             name="create_dataset",
-            description="Create a new dataset",
+            description="Create a new dataset\n\n**Note:** This operation uses HTTP API, not SDK.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -410,7 +530,10 @@ async def handle_list_tools() -> List[types.Tool]:
         ),
         types.Tool(
             name="get_dataset",
-            description="Get a specific dataset by ID",
+            description=extractor.format_tool_description(
+                "Get a specific dataset by ID",
+                "get_dataset"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -421,7 +544,7 @@ async def handle_list_tools() -> List[types.Tool]:
         ),
         types.Tool(
             name="update_dataset",
-            description="Update a dataset",
+            description="Update a dataset\n\n**Note:** This operation uses HTTP API, not SDK.",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -434,7 +557,10 @@ async def handle_list_tools() -> List[types.Tool]:
         ),
         types.Tool(
             name="delete_dataset",
-            description="Delete a dataset",
+            description=extractor.format_tool_description(
+                "Delete a dataset by ID",
+                "delete_dataset"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -488,11 +614,65 @@ async def handle_list_tools() -> List[types.Tool]:
                 "required": ["dataset_id"]
             }
         ),
+        types.Tool(
+            name="extract_timeseries_properties",
+            description="Extract timeseries dataset properties using SDK workflows (PII detection, association rules, field types, session analysis). "
+            "Creates a workflow that loads the dataset, extracts properties, and returns both dataset-level and field-level properties.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {
+                        "type": "string",
+                        "description": "ID of the dataset to analyze"
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "description": "Name of the timestamp field in the timeseries dataset (required)"
+                    },
+                    "session_fields": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of fields that define sessions/entities (e.g., ['user_id', 'device_id'])",
+                        "default": []
+                    },
+                    "metadata_fields": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of fields to treat as metadata. Leave unset to use auto-detection.",
+                        "default": None
+                    },
+                    "detect_metadata_fields": {
+                        "type": "boolean",
+                        "description": "Whether to automatically detect metadata fields",
+                        "default": False
+                    },
+                    "detect_pii": {
+                        "type": "boolean",
+                        "description": "Whether to detect personally identifiable information (PII)",
+                        "default": False
+                    },
+                    "detect_association_rules": {
+                        "type": "boolean",
+                        "description": "Whether to detect field association rules",
+                        "default": False
+                    },
+                    "association_threshold": {
+                        "type": "number",
+                        "description": "Threshold for association rule detection (0-1)",
+                        "default": 0.95
+                    }
+                },
+                "required": ["dataset_id", "timestamp"]
+            }
+        ),
 
         # Query tools
         types.Tool(
             name="execute_query",
-            description="Execute a query and return results in CSV format",
+            description=extractor.format_tool_description(
+                "Execute a SQL query across datasets and return results",
+                "query_datasets"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -504,7 +684,10 @@ async def handle_list_tools() -> List[types.Tool]:
         ),
         types.Tool(
             name="query_dataset",
-            description="Execute a query against a specific dataset and return results in CSV format",
+            description=extractor.format_tool_description(
+                "Execute a SQL query against a specific dataset",
+                "query_dataset"
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -513,6 +696,123 @@ async def handle_list_tools() -> List[types.Tool]:
                     "project_id": {"type": "string", "description": "Optional project ID to execute the query in"}
                 },
                 "required": ["id", "query"]
+            }
+        ),
+
+        # SDK Documentation tools
+        types.Tool(
+            name="get_sdk_docs",
+            description="Get Rockfish SDK documentation for Connection class methods. "
+            "Use this to explore available SDK methods and their parameters. "
+            "If method_name is not provided, lists all available methods.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "method_name": {
+                        "type": "string",
+                        "description": "Optional: specific method name (e.g., 'datasets', 'create_project'). "
+                        "If omitted, returns a list of all available methods."
+                    }
+                },
+                "required": []
+            }
+        ),
+        types.Tool(
+            name="list_sdk_actions",
+            description="List all 63+ Rockfish SDK action classes with brief descriptions. "
+            "Actions are building blocks for workflows (e.g., DatasetLoad, TabPropertyExtractor, Generate). "
+            "Use this to discover available actions for building workflows.",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        ),
+        types.Tool(
+            name="get_action_docs",
+            description="Get detailed documentation for a specific Rockfish SDK action class. "
+            "Returns full docstring with usage examples, parameter descriptions, and configuration schema. "
+            "Use list_sdk_actions first to see available action names.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "action_name": {
+                        "type": "string",
+                        "description": "Action class name (e.g., 'TabPropertyExtractor', 'DatasetLoad', 'Generate')"
+                    }
+                },
+                "required": ["action_name"]
+            }
+        ),
+        types.Tool(
+            name="get_action_config_schema",
+            description="Get the JSON configuration schema for a specific Rockfish SDK action class. "
+            "Returns the JSON schema showing required and optional parameters, types, defaults, and constraints. "
+            "This is useful for understanding what configuration parameters an action accepts when building workflows.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "action_name": {
+                        "type": "string",
+                        "description": "Action class name (e.g., 'TabPropertyExtractor', 'DatasetLoad', 'SQL')"
+                    }
+                },
+                "required": ["action_name"]
+            }
+        ),
+
+        # SDA (Synthetic Data Assessment) tools
+        types.Tool(
+            name="generate_quality_report",
+            description="Generate a comprehensive data quality assessment report comparing real and synthetic datasets. "
+            "Uses the SDA (Synthetic Data Assessment) module to analyze data quality, detect patterns, "
+            "and generate an HTML report. All parameters are optional with smart defaults.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_id": {
+                        "type": "string",
+                        "description": "ID of the real dataset to assess (default: '33jhtc7JwDPA7jRwvfPrwI')"
+                    },
+                    "syn_id": {
+                        "type": "string",
+                        "description": "ID of the synthetic dataset to compare against (default: '56rWfb2iWU1jtcu0oCimD6')"
+                    },
+                    "config": {
+                        "type": "object",
+                        "description": "Configuration dict with 'encoder' and 'tabular-gan' settings. "
+                        "If not provided, will auto-generate by detecting categorical fields from the dataset.",
+                        "properties": {
+                            "encoder": {
+                                "type": "object",
+                                "properties": {
+                                    "metadata": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "field": {"type": "string"},
+                                                "type": {"type": "string", "enum": ["categorical", "continuous"]}
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "tabular-gan": {
+                                "type": "object",
+                                "properties": {
+                                    "epochs": {"type": "integer"},
+                                    "records": {"type": "integer"}
+                                }
+                            }
+                        }
+                    },
+                    "output_file": {
+                        "type": "string",
+                        "description": "HTML output filename (default: 'test1.html'). Report saved to ~/rockfish-reports/ directory (or temp directory as fallback)."
+                    }
+                },
+                "required": []
             }
         )
     ]
@@ -847,7 +1147,7 @@ async def handle_list_tools() -> List[types.Tool]:
 @server.call_tool()
 async def handle_call_tool(
     name: str, arguments: Dict[str, Any]
-) -> List[types.TextContent]:
+) -> List[types.TextContent | types.ImageContent]:
     """Handle tool calls - routes to appropriate client (Manta, Recommender, SDK, or HTTP)."""
 
     # Route 1: Manta tools
@@ -886,7 +1186,25 @@ async def handle_call_tool(
                 text=f"Error calling {name}: {str(e)}"
             )]
 
-    # Route 3: HTTP-only tools (operations SDK cannot handle)
+    # Route 3: SDA tools (Synthetic Data Assessment)
+    if name == "generate_quality_report":
+        if not sda_client:
+            return [types.TextContent(
+                type="text",
+                text="SDA client not initialized. Please check your configuration."
+            )]
+
+        try:
+            result = await sda_client.generate_report(**arguments)
+            return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+        except Exception as e:
+            logger.error(f"SDA error calling {name}: {e}")
+            return [types.TextContent(
+                type="text",
+                text=f"Error calling {name}: {str(e)}"
+            )]
+
+    # Route 4: HTTP-only tools (operations SDK cannot handle)
     http_only_tools = [
         # Databases (5)
         "list_databases", "create_database", "get_database",
@@ -923,7 +1241,7 @@ async def handle_call_tool(
                 text=f"Error calling {name}: {str(e)}"
             )]
 
-    # Route 3: SDK tools (all other Rockfish operations - preferred)
+    # Route 5: SDK tools (all other Rockfish operations - preferred)
     if not sdk_client:
         return [types.TextContent(
             type="text",
@@ -932,6 +1250,16 @@ async def handle_call_tool(
 
     try:
         result = await sdk_client.call_endpoint(name, arguments)
+
+        # Check if result contains image data
+        if isinstance(result, dict) and "image" in result and "mimeType" in result:
+            return [types.ImageContent(
+                type="image",
+                data=result["image"],
+                mimeType=result["mimeType"]
+            )]
+
+        # Default: return as text
         return [types.TextContent(type="text", text=str(result))]
     except NotImplementedError as e:
         # Fallback to HTTP client if SDK doesn't support the operation
@@ -959,7 +1287,7 @@ async def handle_call_tool(
 
 
 async def main():
-    global http_client, sdk_client, manta_client, recommender_client
+    global http_client, sdk_client, manta_client, recommender_client, sda_client
 
     # Check for required API key
     api_key = os.getenv("ROCKFISH_API_KEY")
@@ -970,6 +1298,10 @@ async def main():
     # Initialize SDK client (primary) - uses Connection.from_env()
     sdk_client = RockfishSDKClient()
     logger.info("SDK client initialized from environment")
+
+    # Initialize SDA client (uses SDK connection)
+    sda_client = SDAClient()
+    logger.info("SDA client initialized")
 
     # Initialize HTTP client (fallback for SDK-unsupported operations)
     api_url = os.getenv("ROCKFISH_API_URL", "https://api.rockfish.ai")
