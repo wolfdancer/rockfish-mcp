@@ -205,24 +205,17 @@ class RockfishSDKClient:
 
             dataset_id = arguments["dataset_id"]
             column_name = arguments["column_name"]
-            bins = arguments.get("bins", 30)
 
             # Load dataset and convert to LocalDataset
             dataset = await conn.get_dataset(dataset_id)
             local_dataset = await dataset.to_local(conn)
 
-            # Workaround for SDK bug in plot_distribution():
-            # The SDK tries to access chunked_array.num_rows which doesn't exist
-            # We implement the same logic but use table.num_rows instead
             table = local_dataset.table
             field_type = table[column_name].type
 
-            # Choose plot type based on data characteristics (fixing SDK bug)
+            # Choose plot type based on data characteristics 
             if pa.types.is_string(field_type):
                 # Categorical/string data → bar plot
-                fig = rockfish.labs.vis.plot_bar([local_dataset], column_name)
-            elif table.num_rows <= 10:  # Fix: Use table.num_rows, not chunked_array.num_rows
-                # Very few rows → bar plot
                 fig = rockfish.labs.vis.plot_bar([local_dataset], column_name)
             else:
                 # Numerical data with enough rows → KDE plot
@@ -236,7 +229,6 @@ class RockfishSDKClient:
                 "mimeType": "image/png",
                 "dataset_id": dataset_id,
                 "column_name": column_name,
-                "bins": bins
             }
 
         elif tool_name == "update_workflow":
