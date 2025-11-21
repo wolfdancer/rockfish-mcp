@@ -11,9 +11,9 @@ logger = logging.getLogger(__name__)
 class RockfishClient:
     """Client for interacting with the Rockfish API."""
     
-    def __init__(self, api_key: str, base_url: str = "https://api.rockfish.ai", organization_id=None, project_id=None):
+    def __init__(self, api_key: str, api_url: str = "https://api.rockfish.ai", organization_id=None, project_id=None):
         self.api_key = api_key
-        self.base_url = base_url.rstrip("/")
+        self.api_url = api_url.rstrip("/")
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
@@ -27,7 +27,7 @@ class RockfishClient:
     
     async def _request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """Make an HTTP request to the Rockfish API."""
-        url = f"{self.base_url}{endpoint}"
+        url = f"{self.api_url}{endpoint}"
         
         async with httpx.AsyncClient() as client:
             response = await client.request(
@@ -186,7 +186,7 @@ class RockfishClient:
                 query_headers["X-Project-ID"] = project_id
             
             # Make query request with text/plain content
-            url = f"{self.base_url}/query"
+            url = f"{self.api_url}/query"
             async with httpx.AsyncClient() as client:
                 response = await client.request(
                     method="POST",
@@ -211,7 +211,7 @@ class RockfishClient:
                 query_headers["X-Project-ID"] = project_id
             
             # Make dataset query request with text/plain content
-            url = f"{self.base_url}/dataset/{dataset_id}/query"
+            url = f"{self.api_url}/dataset/{dataset_id}/query"
             async with httpx.AsyncClient() as client:
                 response = await client.request(
                     method="POST",

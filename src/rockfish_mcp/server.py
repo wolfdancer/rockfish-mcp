@@ -736,16 +736,16 @@ async def main():
         project_id=project_id
     )
 
-    # Initialize Manta client only if MANTA_BASE_URL is configured
-    manta_base_url = os.getenv("MANTA_BASE_URL")
-    if manta_base_url:
+    # Initialize Manta client only if MANTA_API_URL is configured
+    manta_api_url = os.getenv("MANTA_API_URL")
+    if manta_api_url:
         manta_client = MantaClient(
             api_key=api_key,
-            base_url=manta_base_url
+            base_url=manta_api_url
         )
-        logger.info(f"Manta client initialized with base URL: {manta_base_url}")
+        logger.info(f"Manta client initialized with API URL: {manta_api_url}")
     else:
-        logger.info("Manta client not initialized (MANTA_BASE_URL not set)")
+        logger.info("Manta client not initialized (MANTA_API_URL not set)")
     
     # Run the server
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
