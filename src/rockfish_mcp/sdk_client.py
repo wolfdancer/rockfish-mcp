@@ -18,41 +18,6 @@ import logging
 import uuid
 logger = logging.getLogger(__name__)
 
-# def get_tabular_dataset_properties(training_fields: list, associated_fields: Optional[list[set]] = None) -> rf.dataset.TabularDatasetProperties:
-#     """Get an instance of TabularDatasetProperties."""
-#     # https://github.com/Rockfish-Data/rockfish-sdk/blob/56b22684f6b3af0400693bc06c35eca67a25eb2d/src/rockfish/dataset.py#L111
-#     associated_rules = [rf.dataset.AssociationRule(field_names=associated_fields)] if associated_fields else []
-
-#     return rf.dataset.TabularDatasetProperties(metadata_fields = training_fields, association_rules=associated_rules)
-
-# # old method
-# def get_dataset_properties(dataset: rf.LocalDataset) -> rl.dataset_properties.DatasetProperties:
-#     props = rl.dataset_properties.DatasetPropertyExtractor(dataset).extract()
-#     return props
-
-
-async def obtain_tab_dataset_with_prop(conn, dataset_id: str, detect_pii: bool = False, detect_association_rules: bool = False, association_threshold: float = 0.95) -> str:
-    """Fetch dataset properties from Rockfish SDK."""
-    # Build workflow: DatasetLoad → TabPropertyExtractor → DatasetSave
-    builder = rf.WorkflowBuilder()
-    dataset_load = ra.DatasetLoad(dataset_id=dataset_id)
-    extract_tab_props = ra.TabPropertyExtractor(
-        detect_pii=detect_pii,
-        detect_association_rules=detect_association_rules,
-        association_threshold=association_threshold,
-    )
-    dataset_save = ra.DatasetSave(name=f"dataset_{dataset_id}_with_props")
-
-    builder.add_path(dataset_load, extract_tab_props, dataset_save)
-    workflow = await builder.start(conn)
-    logger.info(f"Started property extraction workflow: {workflow.id()}")
-
-    # Wait for workflow completion
-    await workflow.wait(raise_on_failure=True)
-    logger.info(f"Workflow {workflow.id()} completed successfully")
-    ds = await workflow.datasets().last()
-    dataset_with_props_id = ds.id
-    return dataset_with_props_id
 
 def create_workflow(actions: list[rf.Action]) -> rf.WorkflowBuilder:
     builder = rf.WorkflowBuilder()
@@ -66,42 +31,8 @@ async def get_local_dataset(conn, dataset_id: str)->rf.dataset.LocalDataset:
     dataset = await dataset.to_local(conn)
     return dataset
 
-# def get_workflow_json(builder: rf.WorkflowBuilder) -> dict[str, Any]:
-#         # Build workflow
-#     workflow_items = builder.build()
-
-#     # Get glue workflow
-#     jobs = []
-#     aliases = {}
-#     for item in workflow_items:
-#         job = glue.JobRequest.from_workflow_item(item)
-#         jobs.append(job)
-#         aliases[item.action] = item.alias
-
-#     labels: dict[str, str] = {}
-#     glue_metadata = glue.WorkflowMetadata(name="train-workflow", labels=labels)
-#     glue_workflow = glue.WorkflowRequest(
-#         jobs,
-#         metadata=glue_metadata,
-#         worker_group=None,
-#         expire_time=None,
-#     )
-#     workflow_json = rf.converter.unstructure(glue_workflow)
-#     return workflow_json
-def obtain_tab_dataset_properties(dataset: rf.dataset.LocalDataset) -> Any:
-    """Get an instance of TabularDatasetProperties."""
-    table_metadata = dataset.table_metadata()
-    dataset_properties = table_metadata.dataset_properties
-    # Extract field properties for all fields
-    field_properties_map = {}
-    for field in dataset.table.schema:
-        field_name = field.name
-        field_properties = dataset.get_field_properties(field_name)
-        field_properties_map[field_name] = field_properties
-    return dataset_properties, field_properties_map
 
 class RockfishSDKClient:
-    # TODO: maybe we can enable a local connection
     def __init__(self, API_KEY: str, API_URL: str, ORGANIZATION_ID: Optional[str] = None, PROJECT_ID: Optional[str] = None):
         """Initialize SDK client using environment variables via Connection.from_env()."""
         self._conn = rf.Connection.remote(
@@ -124,22 +55,7 @@ class RockfishSDKClient:
             NotImplementedError: If the operation is not supported by the SDK
             ValueError: If unknown tool name
         """
-        if tool_name == "obtain_tabular_dataset_properties":
-            dataset_id = arguments["dataset_id"]
-            dataset = await get_local_dataset(self._conn, dataset_id)
-            dataset_id = await obtain_tab_dataset_with_prop(
-                self._conn,
-                dataset_id,
-                detect_pii=True,
-                detect_association_rules=True,
-                association_threshold=0.95
-            )
-            
-            dataset = await get_local_dataset(self._conn, dataset_id)
-
-            dataset_properties, field_properties_map = obtain_tab_dataset_properties(dataset)
-            return {"dataset_id_with_properties": dataset_id, "dataset_properties": dataset_properties, "field_properties_map": field_properties_map}
-        elif tool_name == "obtain_train_config":
+        if tool_name == "obtain_train_config":
             dataset_id = arguments["dataset_id"]
             model_type = arguments["model_type"]
             # dataset_properties = arguments["dataset_properties"]
@@ -186,7 +102,7 @@ class RockfishSDKClient:
                 response["warnings"] = [warning_msg]
 
             return response
-        elif tool_name == "build_training_workflow":
+        elif tool_name == "start_training_workflow":
             dataset_id = arguments["dataset_id"]
             train_config_id = arguments["train_config_id"]
 
@@ -200,10 +116,9 @@ class RockfishSDKClient:
                 }
 
             train_config = self._cache.pop(train_config_id)
-            # https://github.com/Rockfish-Data/SDA/blob/ac10fcb2198f112e65c8fc3210c8e3a56e40a860/src/data_quality_report/check.py#L93-L98
-            # Detect model type from config (handle both dict and class instance)
+            # Detect model type from config
             train_config = rf.converter.unstructure(train_config)
-            # TODO: unstructured config returns "tabular-gan" rather than "tabular_gan"
+            # NOTICE: unstructured config (dict) returns "tabular-gan" rather than "tabular_gan"
             if "tabular-gan" in train_config:
                 train_config = rf.converter.structure(train_config, ra.TrainTabGAN.Config)
                 train_action = ra.TrainTabGAN(train_config)
@@ -298,7 +213,6 @@ class RockfishSDKClient:
                     "generation_workflow_id": generation_workflow_id,
                     "status": status
                 }
-            # TODO: what if it has multiple generations
             generated_dataset = await generation_workflow.datasets().last()
             return {"success": True, "generation_workflow_id": generation_workflow_id, "generated_dataset_id": generated_dataset.id}
         elif tool_name == "plot_distribution":
@@ -358,27 +272,9 @@ class RockfishSDKClient:
                     "message": msg,
                     "marginal_distribution_score": marginal_dist_score,
                 }
-        # Example: HTML output generation
-        elif tool_name == "html_output":
-            name = arguments["name"]
-            html_content = f"""<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>{name} Report</title>
-</head>
-<body>
-    <h1>Training Complete</h1>
-    <p>Your TabGAN model has been trained successfully.</p>
-    <p><strong>Report Name:</strong> {name}</p>
-</body>
-</html>"""
-
-            return {
-                "html": html_content,
-                "message": "Save the html field to a .html file to view in a browser"
-            }
-        elif tool_name == "update_train_config":
+        # this tool has not been tested out yet - still experiemental and require udpates
+        # For now, it is only for rf-tab-gan
+        elif tool_name == "update_train_config": 
             train_config_id = arguments["train_config_id"]
             updates = arguments["updates"]
 
@@ -466,28 +362,6 @@ class RockfishSDKClient:
                                 "field_name": field_name
                             }
 
-                # Update measurements fields (TimeGAN only)
-                if "measurements" in encoder_config:
-                    if model_key != "doppelganger":
-                        return {
-                            "success": False,
-                            "message": "The 'measurements' field is only supported for TimeGAN (doppelganger) models, not for TabGAN models.",
-                            "train_config_id": train_config_id,
-                            "model_type": model_key
-                        }
-
-                    # TODO: Implement measurements update logic similar to metadata
-                    # This will iterate through encoder.measurements array and update field types
-                    # measurements_updates = encoder_config["measurements"]
-                    # measurements = config_dict["encoder"]["measurements"]
-                    # for field_name, new_type in measurements_updates.items():
-                    #     validate and update like metadata above
-                    return {
-                        "success": False,
-                        "message": "Measurements field updates are not yet implemented. This feature is coming soon!",
-                        "train_config_id": train_config_id
-                    }
-
             # Update cache with modified config
             self._cache[train_config_id] = config_dict
 
@@ -550,16 +424,13 @@ def guess_tab_gan_train_config(dataset) -> Tuple[ra.TrainTabGAN.Config, dict]:
             if nunique <=100:
                 categorical_columns.append(column)
             else:
-                # TODO: it is likely to be OOM so for now, we ignore them in train config.
+                # Cardinality > 100 is likely to cause OOM so for now, we ignore them in train config.
                 # Later, we could do resampling or label encoder to handle them
                 high_cardinality_columns.append(column)
-        # TODO: can manually update the threshold
         elif nunique <=10:
             categorical_columns.append(column)
         else:
             continuous_columns.append(column)
-    # TODO: handle some special case
-    # index columns using integer, single-value columns (might need to ask customer to confirm to make decision)
     encoder_config = ra.TrainTabGAN.DatasetConfig(
         metadata=[ra.TrainTabGAN.FieldConfig(field=col, type="categorical") for col in categorical_columns]
         + [ra.TrainTabGAN.FieldConfig(field=col, type="ignore") for col in high_cardinality_columns]

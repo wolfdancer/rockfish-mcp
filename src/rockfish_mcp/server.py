@@ -676,19 +676,8 @@ async def handle_list_tools() -> List[types.Tool]:
     # Add SDK-specific tools
     tools.extend([
         types.Tool(
-            name="obtain_tabular_dataset_properties",
-            description="Extract properties from a tabular dataset using SDK workflow. Automatically detects PII, association rules, and field properties. Returns dataset ID with properties embedded.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "dataset_id": {"type": "string", "description": "Dataset ID to extract properties from"}
-                },
-                "required": ["dataset_id"]
-            }
-        ),
-        types.Tool(
             name="obtain_train_config",
-            description="Generate training configuration for synthetic data models. Returns a cached train_config_id for use in build_training_workflow. Supports TabGAN (rf_tab_gan) and TimeGAN (rf_time_gan).",
+            description="Generate training configuration for synthetic data models. Returns a cached train_config_id for use in start_training_workflow. Supports TabGAN (rf_tab_gan) and TimeGAN (rf_time_gan).",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -703,7 +692,7 @@ async def handle_list_tools() -> List[types.Tool]:
             }
         ),
         types.Tool(
-            name="build_training_workflow",
+            name="start_training_workflow",
             description="Build and start a training workflow using a cached config. Automatically detects model type from train_config structure. Use this after obtaining train_config_id from obtain_train_config.",
             inputSchema={
                 "type": "object",
@@ -755,23 +744,21 @@ async def handle_list_tools() -> List[types.Tool]:
             }
         ),
         types.Tool(
-            name="get_workflow_status",
-            description="Get the current status of a workflow (CREATED, RUNNING, COMPLETED, FAILED, etc.)",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "workflow_id": {"type": "string", "description": "Workflow ID to check status"}
-                },
-                "required": ["workflow_id"]
-            }
-        ),
-        types.Tool(
             name="get_workflow_logs",
-            description="Get logs from a workflow execution. Useful for debugging failed workflows.",
+            description="Stream logs from a workflow execution with configurable log level and collection timeout. Collects logs for specified duration (default 10s), useful for monitoring workflow progress and debugging. Call repeatedly to continue collecting logs from running workflows.",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "workflow_id": {"type": "string", "description": "Workflow ID to get logs from"}
+                    "workflow_id": {"type": "string", "description": "Workflow ID to get logs from"},
+                    "log_level": {
+                        "type": "string",
+                        "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
+                        "description": "Log level filter. Default: INFO"
+                    },
+                    "timeout": {
+                        "type": "integer",
+                        "description": "Collection duration in seconds. Default: 10"
+                    }
                 },
                 "required": ["workflow_id"]
             }
@@ -841,17 +828,6 @@ async def handle_list_tools() -> List[types.Tool]:
                 },
                 "required": ["dataset_ids"]
             }
-        ),
-        types.Tool(
-            name="html_output",
-            description="Generate an HTML report (example/demo tool). Returns HTML content that can be saved to a file.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": "Name for the HTML report"}
-                },
-                "required": ["name"]
-            }
         )
     ])
 
@@ -866,18 +842,15 @@ async def handle_call_tool(
 
     # Route SDK-specific tools to sdk_client
     sdk_tools = [
-        "obtain_tabular_dataset_properties",
         "obtain_train_config",
         "update_train_config",
-        "build_training_workflow",
-        "get_workflow_status",
+        "start_training_workflow",
         "get_workflow_logs",
         "get_trained_model_id",
         "start_generation_workflow",
         "obtain_synthetic_dataset_id",
         "plot_distribution",
-        "get_marginal_distribution_score",
-        "html_output"
+        "get_marginal_distribution_score"
     ]
 
     if name in sdk_tools:

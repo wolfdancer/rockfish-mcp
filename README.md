@@ -235,15 +235,57 @@ chmod +x test-mcp.sh
 - `delete_dataset`: Delete a dataset
 - `get_dataset_schema`: Get dataset metadata present in its schema
 
+### SDK Tools (Synthetic Data Generation)
+These tools use the Rockfish Python SDK to provide end-to-end synthetic data generation workflows:
+
+**Configuration Management:**
+- `obtain_train_config`: Generate training configuration for TabGAN model with automatic column type detection
+- `update_train_config` [experimental]: Modify training hyperparameters or field classifications
+
+**Workflow Execution:**
+- `start_training_workflow`: Start TabGAN training workflow using cached configuration
+- `get_workflow_logs`: Stream workflow logs with configurable level (DEBUG/INFO/WARN/ERROR) and timeout
+- `get_trained_model_id`: Extract trained model ID from completed training workflow
+
+**Synthetic Data Generation:**
+- `start_generation_workflow`: Start generation workflow from trained model
+- `obtain_synthetic_dataset_id`: Extract generated dataset ID from completed workflow
+
+**Quality Assessment:**
+- `plot_distribution`: Generate distribution plots comparing real and synthetic data
+- `get_marginal_distribution_score`: Calculate similarity score between real and synthetic data
+
 ## Development
+
+### Code Formatting
+
+This project uses **black** and **isort** to maintain consistent code style.
+
+**Format your code before committing:**
+```bash
+# Format imports
+isort src/rockfish_mcp/
+
+# Format code style
+black src/rockfish_mcp/
+```
+
+**Check formatting without modifying files:**
+```bash
+isort --check-only src/rockfish_mcp/
+black --check src/rockfish_mcp/
+```
+
+### Contributing
 
 To contribute to this project:
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+4. Format your code with isort and black
+5. Add tests if applicable
+6. Submit a pull request
 
 ## License
 
