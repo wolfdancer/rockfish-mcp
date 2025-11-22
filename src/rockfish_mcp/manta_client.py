@@ -13,16 +13,16 @@ from typing import Any
 class MantaClient:
     """Client for interacting with the Rockfish Manta API."""
 
-    def __init__(self, api_key: str, base_url: str = "https://manta.sunset-beach.rockfish.ai"):
+    def __init__(self, api_key: str, api_url: str = "https://manta.sunset-beach.rockfish.ai"):
         """
         Initialize the Manta client.
 
         Args:
             api_key: Rockfish API key for authentication
-            base_url: Base URL for the Manta API (default: https://manta.sunset-beach.rockfish.ai)
+            api_url: Base URL for the Manta API (default: https://manta.sunset-beach.rockfish.ai)
         """
         self.api_key = api_key
-        self.base_url = base_url.rstrip("/")
+        self.api_url = api_url.rstrip("/")
         self.headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
@@ -56,28 +56,28 @@ class MantaClient:
             if tool_name == "manta_get_prompts":
                 dataset_id = arguments["dataset_id"]
                 response = await client.get(
-                    f"{self.base_url}/prompts",
+                    f"{self.api_url}/prompts",
                     headers=headers,
                     params={"dataset_id": dataset_id}
                 )
 
             elif tool_name == "manta_create_prompts":
                 response = await client.post(
-                    f"{self.base_url}/prompts",
+                    f"{self.api_url}/prompts",
                     headers=headers,
                     json={"dataset_id": arguments["dataset_id"]}
                 )
 
             elif tool_name == "manta_append_prompts":
                 response = await client.patch(
-                    f"{self.base_url}/prompts",
+                    f"{self.api_url}/prompts",
                     headers=headers,
                     json={"dataset_id": arguments["dataset_id"]}
                 )
 
             elif tool_name == "manta_evaluate_test_case":
                 response = await client.post(
-                    f"{self.base_url}/evaluate-test-case",
+                    f"{self.api_url}/evaluate-test-case",
                     headers=headers,
                     json={
                         "prompt": arguments["prompt"],
@@ -88,7 +88,7 @@ class MantaClient:
 
             elif tool_name == "manta_create_instantaneous_spike":
                 response = await client.post(
-                    f"{self.base_url}/instantaneous-spike-data",
+                    f"{self.api_url}/instantaneous-spike-data",
                     headers=headers,
                     json={
                         "dataset_id": arguments["dataset_id"],
@@ -98,7 +98,7 @@ class MantaClient:
 
             elif tool_name == "manta_create_sustained_magnitude_change":
                 response = await client.post(
-                    f"{self.base_url}/sustained-magnitude-change-data",
+                    f"{self.api_url}/sustained-magnitude-change-data",
                     headers=headers,
                     json={
                         "dataset_id": arguments["dataset_id"],
@@ -108,7 +108,7 @@ class MantaClient:
 
             elif tool_name == "manta_create_data_outage":
                 response = await client.post(
-                    f"{self.base_url}/data-outage-data",
+                    f"{self.api_url}/data-outage-data",
                     headers=headers,
                     json={
                         "dataset_id": arguments["dataset_id"],
@@ -118,7 +118,7 @@ class MantaClient:
 
             elif tool_name == "manta_create_value_ramp":
                 response = await client.post(
-                    f"{self.base_url}/value-ramp-data",
+                    f"{self.api_url}/value-ramp-data",
                     headers=headers,
                     json={
                         "dataset_id": arguments["dataset_id"],
@@ -128,14 +128,14 @@ class MantaClient:
 
             elif tool_name == "manta_get_incident_dataset_ids":
                 response = await client.post(
-                    f"{self.base_url}/incident-dataset-ids",
+                    f"{self.api_url}/incident-dataset-ids",
                     headers=headers,
                     json={"dataset_id": arguments["dataset_id"]}
                 )
 
             elif tool_name == "manta_process_llm_questions":
                 response = await client.post(
-                    f"{self.base_url}/customer-llm",
+                    f"{self.api_url}/customer-llm",
                     headers=headers,
                     json={
                         "dataset_id": arguments["dataset_id"],

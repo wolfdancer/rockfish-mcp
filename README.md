@@ -40,7 +40,7 @@ Create a `.env` file with your Rockfish API credentials:
 
 ```env
 ROCKFISH_API_KEY=your_api_key_here
-ROCKFISH_BASE_URL=https://api.rockfish.ai
+ROCKFISH_API_URL=https://api.rockfish.ai
 ```
 
 If you want to use a specific Rockfish Organization and/or Rockfish Project, 
@@ -152,7 +152,7 @@ npx @modelcontextprotocol/inspector /Users/shane/code/rockfish-mcp/.venv/bin/pyt
 #!/bin/bash
 # test-mcp.sh
 export ROCKFISH_API_KEY="your_api_key_here"
-export ROCKFISH_BASE_URL="https://sunset-beach.rockfish.ai"
+export ROCKFISH_API_URL="https://sunset-beach.rockfish.ai"
 npx @modelcontextprotocol/inspector /Users/shane/code/rockfish-mcp/.venv/bin/python -m rockfish_mcp.server
 ```
 
@@ -184,7 +184,7 @@ chmod +x test-mcp.sh
 
 - **MCP server not appearing**: Check that the Python path is correct and the virtual environment is activated
 - **Authentication errors**: Verify your `ROCKFISH_API_KEY` is correct
-- **Connection issues**: Confirm your `ROCKFISH_BASE_URL` is accessible
+- **Connection issues**: Confirm your `ROCKFISH_API_URL` is accessible
 - **Path issues on Windows**: Use forward slashes or escaped backslashes in JSON paths
 
 ## Available Tools

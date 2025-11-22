@@ -721,7 +721,7 @@ async def main():
 
     # Initialize Rockfish client
     api_key = os.getenv("ROCKFISH_API_KEY")
-    base_url = os.getenv("ROCKFISH_BASE_URL", "https://api.rockfish.ai")
+    api_url = os.getenv("ROCKFISH_API_URL", "https://api.rockfish.ai")
     organization_id = os.getenv("ROCKFISH_ORGANIZATION_ID", None)
     project_id = os.getenv("ROCKFISH_PROJECT_ID", None)
 
@@ -731,7 +731,7 @@ async def main():
 
     rockfish_client = RockfishClient(
         api_key=api_key,
-        base_url=base_url,
+        api_url=api_url,
         organization_id=organization_id,
         project_id=project_id
     )
@@ -741,7 +741,7 @@ async def main():
     if manta_api_url:
         manta_client = MantaClient(
             api_key=api_key,
-            base_url=manta_api_url
+            api_url=manta_api_url
         )
         logger.info(f"Manta client initialized with API URL: {manta_api_url}")
     else:
