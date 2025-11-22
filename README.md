@@ -19,11 +19,23 @@ This MCP server provides tools for the following Rockfish resources:
 ```bash
 git clone https://github.com/yourusername/rockfish-mcp.git
 cd rockfish-mcp
-python3.11 -m venv venv
-source venv/bin/activate
+python3.11 -m venv .venv
+source .venv/bin/activate
 ```
 
-2. Install dependencies:
+2. Install dependencies (choose one method):
+
+**Method A: Install with dev tools (recommended for contributors):**
+```bash
+pip install -e ".[dev]"
+```
+
+**Method B: Install from requirements.txt (exact locked versions):**
+```bash
+pip install -r requirements.txt
+```
+
+**Method C: Install runtime only (for production):**
 ```bash
 pip install -e .
 ```
@@ -256,6 +268,15 @@ These tools use the Rockfish Python SDK to provide end-to-end synthetic data gen
 - `get_marginal_distribution_score`: Calculate similarity score between real and synthetic data
 
 ## Development
+
+### Setup
+
+To contribute to this project, install with dev dependencies:
+```bash
+pip install -e ".[dev]"
+```
+
+This installs black and isort for code formatting.
 
 ### Code Formatting
 
