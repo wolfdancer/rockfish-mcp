@@ -721,7 +721,8 @@ async def main():
 
     # Initialize Rockfish client
     api_key = os.getenv("ROCKFISH_API_KEY")
-    api_url = os.getenv("ROCKFISH_API_URL", "https://api.rockfish.ai")
+    # Support both new API_URL and legacy BASE_URL variable names for backwards compatibility
+    api_url = os.getenv("ROCKFISH_API_URL") or os.getenv("ROCKFISH_BASE_URL", "https://api.rockfish.ai")
     organization_id = os.getenv("ROCKFISH_ORGANIZATION_ID", None)
     project_id = os.getenv("ROCKFISH_PROJECT_ID", None)
 
@@ -737,7 +738,8 @@ async def main():
     )
 
     # Initialize Manta client only if MANTA_API_URL is configured
-    manta_api_url = os.getenv("MANTA_API_URL")
+    # Support both new API_URL and legacy BASE_URL variable names for backwards compatibility
+    manta_api_url = os.getenv("MANTA_API_URL") or os.getenv("MANTA_BASE_URL")
     if manta_api_url:
         manta_client = MantaClient(
             api_key=api_key,
