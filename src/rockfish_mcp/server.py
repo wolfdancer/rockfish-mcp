@@ -721,7 +721,8 @@ async def main():
 
     # Initialize Rockfish client
     api_key = os.getenv("ROCKFISH_API_KEY")
-    base_url = os.getenv("ROCKFISH_BASE_URL", "https://api.rockfish.ai")
+    # Support both new API_URL and legacy BASE_URL variable names for backwards compatibility
+    api_url = os.getenv("ROCKFISH_API_URL") or os.getenv("ROCKFISH_BASE_URL", "https://api.rockfish.ai")
     organization_id = os.getenv("ROCKFISH_ORGANIZATION_ID", None)
     project_id = os.getenv("ROCKFISH_PROJECT_ID", None)
 
@@ -731,21 +732,22 @@ async def main():
 
     rockfish_client = RockfishClient(
         api_key=api_key,
-        base_url=base_url,
+        api_url=api_url,
         organization_id=organization_id,
         project_id=project_id
     )
 
-    # Initialize Manta client only if MANTA_BASE_URL is configured
-    manta_base_url = os.getenv("MANTA_BASE_URL")
-    if manta_base_url:
+    # Initialize Manta client only if MANTA_API_URL is configured
+    # Support both new API_URL and legacy BASE_URL variable names for backwards compatibility
+    manta_api_url = os.getenv("MANTA_API_URL") or os.getenv("MANTA_BASE_URL")
+    if manta_api_url:
         manta_client = MantaClient(
             api_key=api_key,
-            base_url=manta_base_url
+            api_url=manta_api_url
         )
-        logger.info(f"Manta client initialized with base URL: {manta_base_url}")
+        logger.info(f"Manta client initialized with API URL: {manta_api_url}")
     else:
-        logger.info("Manta client not initialized (MANTA_BASE_URL not set)")
+        logger.info("Manta client not initialized (MANTA_API_URL not set)")
     
     # Run the server
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
