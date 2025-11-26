@@ -36,7 +36,7 @@ cp .env.example .env
 
 ## Architecture Overview
 
-This is an MCP (Model Context Protocol) server that provides AI assistants access to the Rockfish machine learning platform API and the Manta dataset testing service. The architecture consists of three main components in a simple, focused structure.
+This is an MCP (Model Context Protocol) server that provides AI assistants access to the Rockfish machine learning platform API, the Manta dataset testing service, and the Rockfish SDK for synthetic data generation. The architecture consists of four main components in a simple, focused structure.
 
 ### Project Structure
 ```
@@ -44,7 +44,8 @@ src/rockfish_mcp/
 ├── __init__.py
 ├── server.py       # MCP server with tool definitions and routing
 ├── client.py       # HTTP client for Rockfish API calls
-└── manta_client.py # HTTP client for Manta service calls
+├── manta_client.py # HTTP client for Manta service calls
+└── sdk_client.py   # SDK client for Rockfish python SDK calls
 ```
 
 ### Core Components
@@ -53,13 +54,15 @@ src/rockfish_mcp/
 - Defines tools across multiple resource categories
   - Rockfish API: Databases, Worker Sets, Workflows, Models, Projects, Datasets (22 tools, always available)
   - Manta Service: Prompt Management, Data Manipulation, LLM Processing (10 tools, conditional)
+  - SDK Tools: Synthetic Data Generation workflow tools (9 tools, always available)
 - Conditionally loads Manta tools only when `MANTA_API_URL` environment variable is set
 - Handles tool registration via `@server.list_tools()` decorator
 - Routes tool calls through `@server.call_tool()` decorator:
+  - SDK tools (in `sdk_tools` list) route to `sdk_client`
   - Tools prefixed with `manta_` route to `manta_client`
   - All other tools route to `rockfish_client`
 - Manages server initialization and stdio communication with MCP protocol
-- Uses global `rockfish_client` (always) and `manta_client` (conditional) instances initialized in `main()`
+- Uses global `rockfish_client` (always), `sdk_client` (always), and `manta_client` (conditional) instances initialized in `main()`
 - Requires `ROCKFISH_API_KEY` environment variable to function
 
 **Client (`client.py`)**: HTTP client wrapper for Rockfish API that:
@@ -78,6 +81,19 @@ src/rockfish_mcp/
   - Incident injection (spike, magnitude change, outage, ramp)
   - LLM question processing
 - Centralizes error handling and returns formatted responses
+
+**SDK Client (`sdk_client.py`)**: Python SDK wrapper for Rockfish workflows that:
+- Uses native Rockfish Python SDK (`rockfish` package) instead of HTTP calls
+- Provides direct access to Rockfish SDK connection via `rf.Connection.remote()`
+- Manages synthetic data generation workflow from end-to-end:
+  - Training configuration generation with automatic column type detection
+  - Rockfish TabGAN model training workflow execution
+  - Model extraction and synthetic data generation
+  - Distribution plotting and quality metrics
+- Maintains in-memory cache for training configurations (using UUIDs)
+- Implements streaming workflow logs with configurable log levels and timeouts
+- Returns structured responses with `success` flags and detailed error messages
+- Uses PyArrow for efficient dataset manipulation
 
 ### Tool Categories and API Mapping
 
@@ -104,22 +120,44 @@ The Manta service provides dataset testing and pattern injection capabilities. T
 - **LLM Processing**: `/customer-llm` endpoint
   - Process natural language questions via SQL Agent
 
+#### SDK Tools (Rockfish Python SDK)
+The SDK client provides end-to-end synthetic data generation workflow tools using the native Rockfish Python SDK:
+- **Configuration Management**:
+  - `obtain_train_config`: Generate training config with automatic column type detection (categorical/continuous/high-cardinality)
+  - `update_train_config` [experimental]: Modify hyperparameters (epochs, batch_size, learning rates) or field classifications
+- **Workflow Execution**:
+  - `start_training_workflow`: Start TabGAN training workflow using cached config
+  - `get_workflow_logs`: Stream logs with configurable level (DEBUG/INFO/WARN/ERROR) and timeout
+  - `get_trained_model_id`: Extract model ID from completed training workflow
+- **Generation**:
+  - `start_generation_workflow`: Start generation workflow from trained model
+  - `obtain_synthetic_dataset_id`: Extract generated dataset ID from completed workflow
+- **Quality Assessment**:
+  - `plot_distribution`: Generate distribution plots (bar for categorical, KDE for numerical) comparing datasets
+  - `get_marginal_distribution_score`: Calculate similarity score between real and synthetic data distributions
+
 ### Key Implementation Details
 
-- All API calls are asynchronous using `httpx.AsyncClient` with proper connection handling
-- Both clients use a centralized `call_endpoint()` method with if/elif routing for tool dispatch
+- All API calls are asynchronous:
+  - HTTP clients (`rockfish_client`, `manta_client`) use `httpx.AsyncClient`
+  - SDK client uses native async Rockfish SDK via `rf.Connection.remote()`
+- All clients use a centralized `call_endpoint()` method with if/elif routing for tool dispatch
 - Server initialization:
-  - Always creates a global `RockfishClient` instance
+  - Always creates global `RockfishClient` and `RockfishSDKClient` instances
   - Only creates `MantaClient` instance if `MANTA_API_URL` environment variable is set
   - Manta tools are dynamically added to the tool list only when `manta_client` is initialized
-- Tool routing is handled by checking tool name prefix (`manta_` routes to Manta, others to Rockfish)
+- Tool routing is handled by checking:
+  - SDK tools (in `sdk_tools` list) route to `sdk_client`
+  - Tools prefixed with `manta_` route to `manta_client`
+  - All other tools route to `rockfish_client`
 - Tool schemas are defined inline using JSON Schema format directly in the server
-- Error handling returns `types.TextContent` objects for display to users
+- Error handling returns `types.TextContent` objects (or `ImageContent` for plots) for display to users
 - Each tool specifies required fields and optional parameters in its input schema
-- The clients extract IDs and parameters from arguments and construct appropriate URL paths
+- HTTP clients extract IDs and parameters from arguments and construct appropriate URL paths
+- SDK client maintains in-memory cache for training configurations and returns structured error responses
 - Manta tools require `organization_id` and `project_id` in every request (passed as headers)
 
-Both clients abstract REST API complexity, while the server provides a unified MCP interface that AI assistants can use to interact with Rockfish resources and Manta testing capabilities programmatically.
+All three clients abstract their respective complexities (REST API, Manta service, Rockfish SDK), while the server provides a unified MCP interface that AI assistants can use to interact with Rockfish resources, Manta testing capabilities, and synthetic data generation workflows programmatically.
 
 ## API Reference
 

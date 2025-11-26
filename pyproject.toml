@@ -26,7 +26,14 @@ dependencies = [
     "mcp>=1.0.0",
     "httpx>=0.27.0",
     "pydantic>=2.8.0",
-    "python-dotenv>=1.0.0"
+    "python-dotenv>=1.0.0",
+    "rockfish[labs]>=0.44.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "isort>=5.13.2",
+    "black>=24.10.0"
 ]
 
 [project.scripts]
