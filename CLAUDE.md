@@ -52,7 +52,7 @@ src/rockfish_mcp/
 
 **Server (`server.py`)**: The main MCP server that:
 - Defines tools across multiple resource categories
-  - Rockfish API: Databases, Worker Sets, Workflows, Models, Projects, Datasets (22 tools, always available)
+  - Rockfish API: Databases, Worker Sets, Workflows, Models, Projects, Datasets (21 tools, always available)
   - Manta Service: Prompt Management, Data Manipulation, LLM Processing (10 tools, conditional)
   - SDK Tools: Synthetic Data Generation workflow tools (9 tools, always available)
 - Conditionally loads Manta tools only when `MANTA_API_URL` environment variable is set

@@ -432,25 +432,6 @@ async def handle_list_tools() -> List[types.Tool]:
                 "required": ["query"],
             },
         ),
-        types.Tool(
-            name="query_dataset",
-            description="Execute a query against a specific dataset and return results in CSV format",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "description": "Dataset ID to query against",
-                    },
-                    "query": {"type": "string", "description": "The query to execute"},
-                    "project_id": {
-                        "type": "string",
-                        "description": "Optional project ID to execute the query in",
-                    },
-                },
-                "required": ["id", "query"],
-            },
-        ),
     ]
 
     # Add Manta tools only if Manta client is initialized
@@ -1117,7 +1098,9 @@ async def main():
     # Initialize Rockfish client
     api_key = os.getenv("ROCKFISH_API_KEY")
     # Support both new API_URL and legacy BASE_URL variable names for backwards compatibility
-    api_url = os.getenv("ROCKFISH_API_URL") or os.getenv("ROCKFISH_BASE_URL", "https://api.rockfish.ai")
+    api_url = os.getenv("ROCKFISH_API_URL") or os.getenv(
+        "ROCKFISH_BASE_URL", "https://api.rockfish.ai"
+    )
     organization_id = os.getenv("ROCKFISH_ORGANIZATION_ID", None)
     project_id = os.getenv("ROCKFISH_PROJECT_ID", None)
 
