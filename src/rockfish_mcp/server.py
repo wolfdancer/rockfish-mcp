@@ -1025,47 +1025,47 @@ async def handle_list_tools() -> List[types.Tool]:
                                         "properties": {
                                             "name": {
                                                 "type": "string",
-                                                "description": "Entity name"
+                                                "description": "Entity name",
                                             },
                                             "cardinality": {
                                                 "type": "integer",
                                                 "minimum": 1,
-                                                "description": "Number of rows to generate for this entity"
+                                                "description": "Number of rows to generate for this entity",
                                             },
                                             "columns": {
                                                 "type": "array",
                                                 "description": "List of column specifications",
                                                 "items": {"type": "object"},
-                                                "minItems": 1
-                                            }
+                                                "minItems": 1,
+                                            },
                                         },
-                                        "required": ["name", "cardinality", "columns"]
+                                        "required": ["name", "cardinality", "columns"],
                                     },
-                                    "minItems": 1
+                                    "minItems": 1,
                                 },
                                 "entity_relationships": {
                                     "type": "array",
                                     "description": "List of relationships between entities",
-                                    "items": {"type": "object"}
+                                    "items": {"type": "object"},
                                 },
                                 "global_timestamp": {
                                     "type": "object",
-                                    "description": "Optional global timestamp configuration"
-                                }
+                                    "description": "Optional global timestamp configuration",
+                                },
                             },
                             "required": ["entities"],
-                            "additionalProperties": True
+                            "additionalProperties": True,
                         },
                         "entity_labels": {
                             "type": "object",
                             "description": "Optional entity label mappings for generated datasets",
-                            "additionalProperties": True
+                            "additionalProperties": True,
                         },
                         "show_all_errors": {
                             "type": "boolean",
                             "description": "If true, show all validation errors. If false, show first 5 (default: false)",
-                            "default": False
-                        }
+                            "default": False,
+                        },
                     },
                     "required": ["data_schema_config"],
                 },
@@ -1196,7 +1196,9 @@ async def main():
     # Initialize Rockfish client
     api_key = os.getenv("ROCKFISH_API_KEY")
     # Support both new API_URL and legacy BASE_URL variable names for backwards compatibility
-    api_url = os.getenv("ROCKFISH_API_URL") or os.getenv("ROCKFISH_BASE_URL", "https://api.rockfish.ai")
+    api_url = os.getenv("ROCKFISH_API_URL") or os.getenv(
+        "ROCKFISH_BASE_URL", "https://api.rockfish.ai"
+    )
     organization_id = os.getenv("ROCKFISH_ORGANIZATION_ID", None)
     project_id = os.getenv("ROCKFISH_PROJECT_ID", None)
 

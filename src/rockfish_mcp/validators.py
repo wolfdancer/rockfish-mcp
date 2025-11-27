@@ -134,9 +134,7 @@ class DataSchemaValidator:
                 )
             )
 
-    def _validate_categorical_params(
-        self, params: CategoricalParams, location: str
-    ):
+    def _validate_categorical_params(self, params: CategoricalParams, location: str):
         """Validate CategoricalParams: values not empty, weights match length."""
         if not params.values:
             self.errors.append(
@@ -202,9 +200,7 @@ class DataSchemaValidator:
                 )
             )
 
-    def _validate_timeseries_params(
-        self, params: TimeseriesParams, location: str
-    ):
+    def _validate_timeseries_params(self, params: TimeseriesParams, location: str):
         """Validate TimeseriesParams: 6 range and probability checks."""
         # min_value < max_value
         if params.min_value >= params.max_value:
@@ -279,9 +275,7 @@ class DataSchemaValidator:
                 )
             )
 
-    def _validate_state_machine_params(
-        self, params: StateMachineParams, location: str
-    ):
+    def _validate_state_machine_params(self, params: StateMachineParams, location: str):
         """Validate StateMachineParams: states, transitions, context variables."""
         # initial_state in states
         if params.initial_state not in params.states:
@@ -311,7 +305,9 @@ class DataSchemaValidator:
         # Validate each transition
         for idx, trans in enumerate(params.transitions):
             trans_loc = f"{location} > transition {idx}"
-            self._validate_transition(trans, params.states, params.context_variables, trans_loc)
+            self._validate_transition(
+                trans, params.states, params.context_variables, trans_loc
+            )
 
     def _validate_transition(
         self,
@@ -397,16 +393,12 @@ class DataSchemaValidator:
                 loc = f"entity '{entity.name}' > column '{column.name}'"
 
                 if column.derivation.function_type == DerivationFunctionType.MAP_VALUES:
-                    self._validate_map_values_params(
-                        column.derivation.params, loc
-                    )
+                    self._validate_map_values_params(column.derivation.params, loc)
 
                 # Check for unsupported cross-category MEASUREMENT dependencies
                 self._validate_measurement_dependencies(entity, column, loc)
 
-    def _validate_map_values_params(
-        self, params: MapValuesParams, location: str
-    ):
+    def _validate_map_values_params(self, params: MapValuesParams, location: str):
         """Validate MapValuesParams: mapping not empty, rules have from/to."""
         if not params.mapping:
             self.errors.append(
@@ -568,9 +560,7 @@ class DataSchemaValidator:
         for entity in self.schema.entities:
             column_names = [c.name for c in entity.columns]
             duplicates = [
-                name
-                for name in set(column_names)
-                if column_names.count(name) > 1
+                name for name in set(column_names) if column_names.count(name) > 1
             ]
             if duplicates:
                 self.errors.append(
@@ -604,9 +594,7 @@ class DataSchemaValidator:
                 DomainType.STATE_MACHINE,
                 DomainType.TIMESERIES,
             ):
-                domain_type = (
-                    column.domain.type if column.domain else "None"
-                )
+                domain_type = column.domain.type if column.domain else "None"
                 self.errors.append(
                     ValidationError(
                         level=ValidationLevel.ERROR,

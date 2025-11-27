@@ -25,9 +25,9 @@ logger = logging.getLogger(__name__)
 
 # Import validators for comprehensive DataSchema validation
 from rockfish_mcp.validators import (
-    validate_dataschema_comprehensive,
     ValidationError,
     ValidationLevel,
+    validate_dataschema_comprehensive,
 )
 
 
@@ -441,7 +441,7 @@ class RockfishSDKClient:
             # Pass show_all_errors via schema_dict for _validate_data_schema
             schema_dict_with_options = {
                 **data_schema_config,
-                "_show_all_errors": show_all_errors
+                "_show_all_errors": show_all_errors,
             }
             validation_result = _validate_data_schema(schema_dict_with_options)
 
@@ -453,7 +453,10 @@ class RockfishSDKClient:
                     "error": validation_result["error_message"],
                 }
                 # Add optional fields if present
-                if "suggestion" in validation_result and validation_result["suggestion"]:
+                if (
+                    "suggestion" in validation_result
+                    and validation_result["suggestion"]
+                ):
                     error_response["suggestion"] = validation_result["suggestion"]
                 if "reference" in validation_result and validation_result["reference"]:
                     error_response["reference"] = validation_result["reference"]
@@ -475,7 +478,9 @@ class RockfishSDKClient:
             entities = data_schema_config.get("entities", [])
             entity_names = [e.get("name") for e in entities]
             total_columns = sum(len(e.get("columns", [])) for e in entities)
-            relationships_count = len(data_schema_config.get("entity_relationships", []))
+            relationships_count = len(
+                data_schema_config.get("entity_relationships", [])
+            )
 
             response = {
                 "success": True,
@@ -508,11 +513,15 @@ class RockfishSDKClient:
             # Retrieve and remove from cache
             cache_entry = self._cache.pop(schema_config_id)
             data_schema_dict = cache_entry["data_schema_config"]
-            entity_labels = cache_entry.get("entity_labels") # TODO: make use of entity_labels in GenerateFromDataSchema
+            entity_labels = cache_entry.get(
+                "entity_labels"
+            )  # TODO: make use of entity_labels in GenerateFromDataSchema
 
             # Convert dict to DataSchema (should not fail since we already validated)
             try:
-                data_schema = rf.converter.structure(data_schema_dict, ra.ent.DataSchema)
+                data_schema = rf.converter.structure(
+                    data_schema_dict, ra.ent.DataSchema
+                )
             except Exception as e:
                 return {
                     "success": False,
@@ -524,8 +533,7 @@ class RockfishSDKClient:
             try:
                 if entity_labels:
                     generate_action = ra.ent.GenerateFromDataSchema(
-                        schema=data_schema,
-                        entity_labels=entity_labels
+                        schema=data_schema, entity_labels=entity_labels
                     )
                 else:
                     generate_action = ra.ent.GenerateFromDataSchema(schema=data_schema)
@@ -685,7 +693,7 @@ def _validate_data_schema(schema_dict: Dict[str, Any]) -> Dict[str, Any]:
             validation_result = _format_comprehensive_errors(
                 comprehensive_errors,
                 schema_dict,
-                show_all=schema_dict.get('_show_all_errors', False)
+                show_all=schema_dict.get("_show_all_errors", False),
             )
 
             # If valid=True (warnings only), add data_schema for caching
@@ -697,7 +705,7 @@ def _validate_data_schema(schema_dict: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "valid": True,
             "data_schema": data_schema,
-            "summary": f"Validation successful: {len(schema_dict.get('entities', []))} entities"
+            "summary": f"Validation successful: {len(schema_dict.get('entities', []))} entities",
         }
     except StructureError as e:
         # Parse StructureError message with intelligent error detection
@@ -709,7 +717,7 @@ def _validate_data_schema(schema_dict: Dict[str, Any]) -> Dict[str, Any]:
             "error_message": helpful_error["detailed_message"],
             "suggestion": helpful_error.get("fix_suggestion"),
             "reference": helpful_error.get("docs_link"),
-            "summary": f"Validation failed: {helpful_error['summary']}"
+            "summary": f"Validation failed: {helpful_error['summary']}",
         }
     except Exception as e:
         # Catch other validation errors (from __attrs_post_init__)
@@ -721,11 +729,13 @@ def _validate_data_schema(schema_dict: Dict[str, Any]) -> Dict[str, Any]:
             "error_message": helpful_error["detailed_message"],
             "suggestion": helpful_error.get("fix_suggestion"),
             "reference": helpful_error.get("docs_link"),
-            "summary": f"Validation failed: {helpful_error['summary']}"
+            "summary": f"Validation failed: {helpful_error['summary']}",
         }
 
 
-def _detect_common_errors(error_msg: str, schema_dict: Dict[str, Any]) -> Dict[str, Any]:
+def _detect_common_errors(
+    error_msg: str, schema_dict: Dict[str, Any]
+) -> Dict[str, Any]:
     """
     Detect common error patterns and provide actionable fix suggestions.
 
@@ -747,7 +757,9 @@ def _detect_common_errors(error_msg: str, schema_dict: Dict[str, Any]) -> Dict[s
     import re
 
     # Pattern 1: Domain validation error - "expected Optional @ $.entities[X].columns[Y].domain"
-    domain_error_pattern = r"expected Optional @ \$\.entities\[(\d+)\]\.columns\[(\d+)\]\.domain"
+    domain_error_pattern = (
+        r"expected Optional @ \$\.entities\[(\d+)\]\.columns\[(\d+)\]\.domain"
+    )
     match = re.search(domain_error_pattern, error_msg)
 
     if match:
@@ -768,10 +780,12 @@ def _detect_common_errors(error_msg: str, schema_dict: Dict[str, Any]) -> Dict[s
                     if isinstance(domain, dict) and "type" in domain:
                         domain_type = domain.get("type")
                         # Check if there are extra keys that should be in "params"
-                        extra_keys = [k for k in domain.keys() if k not in ["type", "params"]]
+                        extra_keys = [
+                            k for k in domain.keys() if k not in ["type", "params"]
+                        ]
 
                         if extra_keys and "params" not in domain:
-                            params_str = ', '.join([f'"{k}"' for k in extra_keys])
+                            params_str = ", ".join([f'"{k}"' for k in extra_keys])
                             return {
                                 "summary": f"Domain structure error in column '{column.get('name', 'unknown')}'",
                                 "detailed_message": (
@@ -783,16 +797,18 @@ def _detect_common_errors(error_msg: str, schema_dict: Dict[str, Any]) -> Dict[s
                                     f'  "domain": {{\n'
                                     f'    "type": "{domain_type}",\n'
                                     f'    "params": {{ {params_str}: ... }}\n'
-                                    f'  }}'
+                                    f"  }}"
                                 ),
-                                "fix_suggestion": f"Move {params_str} inside 'params': {{\"type\": \"{domain_type}\", \"params\": {{...}}}}",
-                                "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html#rockfish.actions.ent.Domain"
+                                "fix_suggestion": f'Move {params_str} inside \'params\': {{"type": "{domain_type}", "params": {{...}}}}',
+                                "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html#rockfish.actions.ent.Domain",
                             }
         except (IndexError, KeyError, TypeError):
             pass  # Fall through to generic error
 
     # Pattern 2: Derivation validation error - similar structure
-    derivation_error_pattern = r"expected Optional @ \$\.entities\[(\d+)\]\.columns\[(\d+)\]\.derivation"
+    derivation_error_pattern = (
+        r"expected Optional @ \$\.entities\[(\d+)\]\.columns\[(\d+)\]\.derivation"
+    )
     match = re.search(derivation_error_pattern, error_msg)
 
     if match:
@@ -810,10 +826,14 @@ def _detect_common_errors(error_msg: str, schema_dict: Dict[str, Any]) -> Dict[s
 
                     if isinstance(derivation, dict) and "function_type" in derivation:
                         func_type = derivation.get("function_type")
-                        extra_keys = [k for k in derivation.keys() if k not in ["function_type", "params", "dependent_columns"]]
+                        extra_keys = [
+                            k
+                            for k in derivation.keys()
+                            if k not in ["function_type", "params", "dependent_columns"]
+                        ]
 
                         if extra_keys and "params" not in derivation:
-                            params_str = ', '.join([f'"{k}"' for k in extra_keys])
+                            params_str = ", ".join([f'"{k}"' for k in extra_keys])
                             return {
                                 "summary": f"Derivation structure error in column '{column.get('name', 'unknown')}'",
                                 "detailed_message": (
@@ -825,10 +845,10 @@ def _detect_common_errors(error_msg: str, schema_dict: Dict[str, Any]) -> Dict[s
                                     f'    "function_type": "{func_type}",\n'
                                     f'    "dependent_columns": [...],\n'
                                     f'    "params": {{ {params_str}: ... }}\n'
-                                    f'  }}'
+                                    f"  }}"
                                 ),
                                 "fix_suggestion": f"Move {params_str} inside 'params'",
-                                "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html#rockfish.actions.ent.Derivation"
+                                "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html#rockfish.actions.ent.Derivation",
                             }
         except (IndexError, KeyError, TypeError):
             pass
@@ -847,10 +867,13 @@ def _detect_common_errors(error_msg: str, schema_dict: Dict[str, Any]) -> Dict[s
                 "- 'foreign_key': Auto-generated foreign key references"
             ),
             "fix_suggestion": "Use one of: 'independent', 'stateful', 'derived', 'foreign_key'",
-            "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html#rockfish.actions.ent.Column"
+            "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html#rockfish.actions.ent.Column",
         }
 
-    if "expected ColumnCategoryType" in error_msg or "expected CategoryType" in error_msg:
+    if (
+        "expected ColumnCategoryType" in error_msg
+        or "expected CategoryType" in error_msg
+    ):
         return {
             "summary": "Invalid column_category_type value",
             "detailed_message": (
@@ -861,7 +884,7 @@ def _detect_common_errors(error_msg: str, schema_dict: Dict[str, Any]) -> Dict[s
                 "- FOREIGN_KEY columns MUST use 'metadata' category"
             ),
             "fix_suggestion": "Use 'metadata' or 'measurement' (stateful columns require 'measurement')",
-            "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html#rockfish.actions.ent.Column"
+            "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html#rockfish.actions.ent.Column",
         }
 
     # Pattern 4: Domain AND derivation error
@@ -876,11 +899,14 @@ def _detect_common_errors(error_msg: str, schema_dict: Dict[str, Any]) -> Dict[s
                 "- FOREIGN_KEY columns: Neither (auto-generated)"
             ),
             "fix_suggestion": "Remove either 'domain' or 'derivation' based on your column_type",
-            "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html#rockfish.actions.ent.Column"
+            "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html#rockfish.actions.ent.Column",
         }
 
     # Pattern 5: Missing domain or derivation
-    if "must have domain" in error_msg.lower() or "must have derivation" in error_msg.lower():
+    if (
+        "must have domain" in error_msg.lower()
+        or "must have derivation" in error_msg.lower()
+    ):
         return {
             "summary": "Missing required domain or derivation",
             "detailed_message": (
@@ -892,7 +918,7 @@ def _detect_common_errors(error_msg: str, schema_dict: Dict[str, Any]) -> Dict[s
                 "- FOREIGN_KEY columns: No domain/derivation needed (auto-generated)"
             ),
             "fix_suggestion": "Add appropriate 'domain' or 'derivation' based on column_type",
-            "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html#rockfish.actions.ent.Column"
+            "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html#rockfish.actions.ent.Column",
         }
 
     # Pattern 6: Missing global_timestamp
@@ -906,10 +932,10 @@ def _detect_common_errors(error_msg: str, schema_dict: Dict[str, Any]) -> Dict[s
                 f'  "global_timestamp": {{\n'
                 f'    "start_timestamp": "2024-01-01T00:00:00",\n'
                 f'    "cadence": {{"num_steps": 1000}}\n'
-                f'  }}'
+                f"  }}"
             ),
             "fix_suggestion": "Add 'global_timestamp' to your DataSchema with start_timestamp and cadence",
-            "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html#rockfish.actions.ent.GlobalTimestamp"
+            "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html#rockfish.actions.ent.GlobalTimestamp",
         }
 
     # Pattern 7: Duplicate names
@@ -923,7 +949,7 @@ def _detect_common_errors(error_msg: str, schema_dict: Dict[str, Any]) -> Dict[s
                 "- Column names must be unique within each entity"
             ),
             "fix_suggestion": "Ensure all entity names and column names are unique",
-            "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html"
+            "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html",
         }
 
     # Pattern 8: Missing required fields
@@ -940,14 +966,14 @@ def _detect_common_errors(error_msg: str, schema_dict: Dict[str, Any]) -> Dict[s
                 "- Derivation: function_type, dependent_columns, params"
             ),
             "fix_suggestion": "Add the missing required field indicated in the error",
-            "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html"
+            "docs_link": "https://docs.rockfish.ai/sdk/actions-ent.html",
         }
 
     # Generic error (no pattern matched)
     return {
         "summary": "Validation error",
         "detailed_message": error_msg,
-        "reference": "See https://docs.rockfish.ai/sdk/actions-ent.html for complete schema documentation"
+        "reference": "See https://docs.rockfish.ai/sdk/actions-ent.html for complete schema documentation",
     }
 
 
@@ -978,18 +1004,20 @@ def _format_comprehensive_errors(
         # No errors - return success with warnings/info as advisory
         advisory = []
         for w in warning_level + info_level:
-            advisory.append({
-                "level": str(w.level),
-                "rule": w.rule,
-                "message": w.message,
-                "location": w.location,
-                "suggestion": w.suggestion
-            })
+            advisory.append(
+                {
+                    "level": str(w.level),
+                    "rule": w.rule,
+                    "message": w.message,
+                    "location": w.location,
+                    "suggestion": w.suggestion,
+                }
+            )
 
         return {
             "valid": True,
             "warnings": advisory if advisory else [],
-            "summary": f"Validation passed with {len(warning_level)} warning(s) and {len(info_level)} info message(s)"
+            "summary": f"Validation passed with {len(warning_level)} warning(s) and {len(info_level)} info message(s)",
         }
 
     # Has ERROR level - return error response
@@ -1026,5 +1054,5 @@ def _format_comprehensive_errors(
         "error_message": detailed_message,
         "suggestion": primary_error.suggestion if primary_error.suggestion else "",
         "reference": "https://docs.rockfish.ai/sdk/actions-ent.html",
-        "summary": summary
+        "summary": summary,
     }
