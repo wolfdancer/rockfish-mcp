@@ -1007,6 +1007,83 @@ async def handle_list_tools() -> List[types.Tool]:
                     "required": ["dataset_ids"],
                 },
             ),
+            types.Tool(
+                name="validate_data_schema_config",
+                description="Validate DataSchema configuration for entity data generation and cache it. Validates column, entity, and schema levels. Returns validation errors or success with cached config_id.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "data_schema_config": {
+                            "type": "object",
+                            "description": "DataSchema configuration with entities, columns, and relationships",
+                            "properties": {
+                                "entities": {
+                                    "type": "array",
+                                    "description": "List of entity specifications",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {
+                                                "type": "string",
+                                                "description": "Entity name"
+                                            },
+                                            "cardinality": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "description": "Number of rows to generate for this entity"
+                                            },
+                                            "columns": {
+                                                "type": "array",
+                                                "description": "List of column specifications",
+                                                "items": {"type": "object"},
+                                                "minItems": 1
+                                            }
+                                        },
+                                        "required": ["name", "cardinality", "columns"]
+                                    },
+                                    "minItems": 1
+                                },
+                                "entity_relationships": {
+                                    "type": "array",
+                                    "description": "List of relationships between entities",
+                                    "items": {"type": "object"}
+                                },
+                                "global_timestamp": {
+                                    "type": "object",
+                                    "description": "Optional global timestamp configuration"
+                                }
+                            },
+                            "required": ["entities"],
+                            "additionalProperties": True
+                        },
+                        "entity_labels": {
+                            "type": "object",
+                            "description": "Optional entity label mappings for generated datasets",
+                            "additionalProperties": True
+                        },
+                        "show_all_errors": {
+                            "type": "boolean",
+                            "description": "If true, show all validation errors. If false, show first 5 (default: false)",
+                            "default": False
+                        }
+                    },
+                    "required": ["data_schema_config"],
+                },
+            ),
+            types.Tool(
+                name="start_data_schema_generation_workflow",
+                description="Start entity data generation workflow using cached schema config. Converts config to rockfish.actions.ent dataclasses and starts workflow. Use after validate_data_schema_config.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "schema_config_id": {
+                            "type": "string",
+                            "description": "Config ID from validate_data_schema_config (retrieves cached config)",
+                        }
+                    },
+                    "required": ["schema_config_id"],
+                },
+            ),
         ]
     )
 
@@ -1030,6 +1107,8 @@ async def handle_call_tool(
         "obtain_synthetic_dataset_id",
         "plot_distribution",
         "get_marginal_distribution_score",
+        "validate_data_schema_config",
+        "start_data_schema_generation_workflow",
     ]
 
     if name in sdk_tools:
