@@ -406,14 +406,6 @@ class RockfishSDKClient:
                     "message": validation_result["summary"],
                     "error": validation_result["error_message"],
                 }
-                # Add optional fields if present
-                if (
-                    "suggestion" in validation_result
-                    and validation_result["suggestion"]
-                ):
-                    error_response["suggestion"] = validation_result["suggestion"]
-                if "reference" in validation_result and validation_result["reference"]:
-                    error_response["reference"] = validation_result["reference"]
 
                 return error_response
 
