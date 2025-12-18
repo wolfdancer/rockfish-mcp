@@ -437,16 +437,223 @@ async def handle_list_tools() -> List[types.Tool]:
     # Add Manta tools only if Manta client is initialized
     if manta_client:
         manta_tools = [
-            # Manta Service - Prompt Management tools
+            # Manta Service - Data Manipulation tools (Incident Injection v2)
             types.Tool(
-                name="manta_get_prompts",
-                description="Get natural language prompts and expected answers for a dataset",
+                name="create_incident_dataset",
+                description="Create a new dataset with injected incidents. Supports instantaneous-spike-data, sustained-magnitude-change-data, data-outage-data, and value-ramp-data incident types.",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "dataset_id": {
                             "type": "string",
-                            "description": "Dataset ID to get prompts for",
+                            "description": "Source time-series dataset ID",
+                        },
+                        "incident_type": {
+                            "type": "string",
+                            "enum": [
+                                "instantaneous-spike-data",
+                                "sustained-magnitude-change-data",
+                                "data-outage-data",
+                                "value-ramp-data",
+                            ],
+                            "description": "Type of incident to inject",
+                        },
+                        "incident_config": {
+                            "type": "object",
+                            "description": "Configuration matching the incident type. Schema varies by incident_type.",
+                            "oneOf": [
+                                {
+                                    "title": "InstantaneousSpikeIncidentConfig",
+                                    "type": "object",
+                                    "properties": {
+                                        "impacted_metadata_predicate": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "column_name": {"type": "string"},
+                                                    "value": {"description": "Any value type"}
+                                                },
+                                                "required": ["column_name", "value"]
+                                            },
+                                            "description": "List of metadata predicates to identify impacted rows"
+                                        },
+                                        "impacted_measurement": {
+                                            "type": "string",
+                                            "description": "Name of the measurement column to inject spike into"
+                                        },
+                                        "absolute_magnitude": {
+                                            "type": ["number", "integer"],
+                                            "description": "Absolute spike value to inject"
+                                        },
+                                        "timestamp_column": {
+                                            "type": "string",
+                                            "description": "Name of the timestamp column"
+                                        },
+                                        "timestamp": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "description": "Timestamp when spike occurs (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')"
+                                        }
+                                    },
+                                    "required": ["impacted_metadata_predicate", "impacted_measurement", "absolute_magnitude", "timestamp_column", "timestamp"]
+                                },
+                                {
+                                    "title": "SustainedMagnitudeChangeIncidentConfig",
+                                    "type": "object",
+                                    "properties": {
+                                        "impacted_metadata_predicate": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "column_name": {"type": "string"},
+                                                    "value": {"description": "Any value type"}
+                                                },
+                                                "required": ["column_name", "value"]
+                                            },
+                                            "description": "List of metadata predicates to identify impacted rows"
+                                        },
+                                        "impacted_measurement": {
+                                            "type": "string",
+                                            "description": "Name of the measurement column to modify"
+                                        },
+                                        "delta_magnitude": {
+                                            "type": ["number", "integer"],
+                                            "description": "Delta value to add to measurements during incident period"
+                                        },
+                                        "timestamp_column": {
+                                            "type": "string",
+                                            "description": "Name of the timestamp column"
+                                        },
+                                        "start_timestamp": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "description": "Start timestamp of sustained change (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')"
+                                        },
+                                        "end_timestamp": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "description": "End timestamp of sustained change (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')"
+                                        }
+                                    },
+                                    "required": ["impacted_metadata_predicate", "impacted_measurement", "delta_magnitude", "timestamp_column", "start_timestamp", "end_timestamp"]
+                                },
+                                {
+                                    "title": "DataOutageIncidentConfig",
+                                    "type": "object",
+                                    "properties": {
+                                        "impacted_metadata_predicate": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "column_name": {"type": "string"},
+                                                    "value": {"description": "Any value type"}
+                                                },
+                                                "required": ["column_name", "value"]
+                                            },
+                                            "description": "List of metadata predicates to identify impacted rows"
+                                        },
+                                        "impacted_measurement": {
+                                            "type": "string",
+                                            "description": "Name of the measurement column to set to outage value"
+                                        },
+                                        "absolute_magnitude": {
+                                            "type": ["number", "integer"],
+                                            "description": "Value to set during outage (typically 0 or null-equivalent)"
+                                        },
+                                        "timestamp_column": {
+                                            "type": "string",
+                                            "description": "Name of the timestamp column"
+                                        },
+                                        "start_timestamp": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "description": "Start timestamp of outage (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')"
+                                        },
+                                        "end_timestamp": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "description": "End timestamp of outage (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')"
+                                        }
+                                    },
+                                    "required": ["impacted_metadata_predicate", "impacted_measurement", "absolute_magnitude", "timestamp_column", "start_timestamp", "end_timestamp"]
+                                },
+                                {
+                                    "title": "ValueRampIncidentConfig",
+                                    "type": "object",
+                                    "properties": {
+                                        "impacted_metadata_predicate": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "column_name": {"type": "string"},
+                                                    "value": {"description": "Any value type"}
+                                                },
+                                                "required": ["column_name", "value"]
+                                            },
+                                            "description": "List of metadata predicates to identify impacted rows"
+                                        },
+                                        "impacted_measurement": {
+                                            "type": "string",
+                                            "description": "Name of the measurement column to ramp"
+                                        },
+                                        "end_absolute_magnitude": {
+                                            "type": ["number", "integer"],
+                                            "description": "Final absolute value at end of ramp"
+                                        },
+                                        "slope": {
+                                            "type": ["number", "integer"],
+                                            "description": "Rate of change per time unit"
+                                        },
+                                        "timestamp_column": {
+                                            "type": "string",
+                                            "description": "Name of the timestamp column"
+                                        },
+                                        "start_timestamp": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "description": "Start timestamp of ramp (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')"
+                                        },
+                                        "end_timestamp": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "description": "End timestamp of ramp (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')"
+                                        }
+                                    },
+                                    "required": ["impacted_metadata_predicate", "impacted_measurement", "end_absolute_magnitude", "slope", "timestamp_column", "start_timestamp", "end_timestamp"]
+                                }
+                            ]
+                        },
+                        "organization_id": {
+                            "type": "string",
+                            "description": "Organization ID (required by Manta API)",
+                        },
+                        "project_id": {
+                            "type": "string",
+                            "description": "Project ID (required by Manta API)",
+                        },
+                    },
+                    "required": [
+                        "dataset_id",
+                        "incident_type",
+                        "incident_config",
+                        "organization_id",
+                        "project_id",
+                    ],
+                },
+            ),
+            types.Tool(
+                name="generate_incident_prompts",
+                description="Generate analysis prompts for an incident dataset",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "dataset_id": {
+                            "type": "string",
+                            "description": "Incident dataset ID (from create_incident_dataset)",
                         },
                         "organization_id": {
                             "type": "string",
@@ -461,14 +668,14 @@ async def handle_list_tools() -> List[types.Tool]:
                 },
             ),
             types.Tool(
-                name="manta_create_prompts",
-                description="Create prompts and answers for a dataset",
+                name="list_incident_datasets",
+                description="List all incident datasets derived from a source dataset",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "dataset_id": {
                             "type": "string",
-                            "description": "Dataset ID to create prompts for",
+                            "description": "Source dataset ID",
                         },
                         "organization_id": {
                             "type": "string",
@@ -483,14 +690,14 @@ async def handle_list_tools() -> List[types.Tool]:
                 },
             ),
             types.Tool(
-                name="manta_append_prompts",
-                description="Append prompts to an existing dataset prompt collection",
+                name="get_incident_prompts",
+                description="Retrieve previously generated prompts for an incident dataset",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "dataset_id": {
                             "type": "string",
-                            "description": "Dataset ID to append prompts to",
+                            "description": "Incident dataset ID",
                         },
                         "organization_id": {
                             "type": "string",
@@ -502,306 +709,6 @@ async def handle_list_tools() -> List[types.Tool]:
                         },
                     },
                     "required": ["dataset_id", "organization_id", "project_id"],
-                },
-            ),
-            types.Tool(
-                name="manta_evaluate_test_case",
-                description="Compare actual vs expected results for test validation",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "prompt": {
-                            "type": "string",
-                            "description": "The prompt/question that was asked",
-                        },
-                        "actual_result": {
-                            "type": "string",
-                            "description": "The actual result obtained",
-                        },
-                        "expected_result": {
-                            "type": "string",
-                            "description": "The expected result",
-                        },
-                        "organization_id": {
-                            "type": "string",
-                            "description": "Organization ID (required by Manta API)",
-                        },
-                        "project_id": {
-                            "type": "string",
-                            "description": "Project ID (required by Manta API)",
-                        },
-                    },
-                    "required": [
-                        "prompt",
-                        "actual_result",
-                        "expected_result",
-                        "organization_id",
-                        "project_id",
-                    ],
-                },
-            ),
-            # Manta Service - Data Manipulation tools (Incident Injection)
-            types.Tool(
-                name="manta_create_instantaneous_spike",
-                description="Create a modified dataset with an instantaneous spike incident injected",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "dataset_id": {
-                            "type": "string",
-                            "description": "Original dataset ID",
-                        },
-                        "incident_config": {
-                            "type": "object",
-                            "description": "Configuration for the spike incident",
-                            "properties": {
-                                "metadata_predicates": {
-                                    "type": "object",
-                                    "description": "Metadata filters to select time series",
-                                },
-                                "measurements": {
-                                    "type": "array",
-                                    "items": {"type": "string"},
-                                    "description": "List of measurements to inject spike into",
-                                },
-                                "incident_start_timestamp": {
-                                    "type": "string",
-                                    "description": "ISO timestamp when spike occurs",
-                                },
-                                "magnitude": {
-                                    "type": "number",
-                                    "description": "Magnitude of the spike",
-                                },
-                            },
-                        },
-                        "organization_id": {
-                            "type": "string",
-                            "description": "Organization ID (required by Manta API)",
-                        },
-                        "project_id": {
-                            "type": "string",
-                            "description": "Project ID (required by Manta API)",
-                        },
-                    },
-                    "required": [
-                        "dataset_id",
-                        "incident_config",
-                        "organization_id",
-                        "project_id",
-                    ],
-                },
-            ),
-            types.Tool(
-                name="manta_create_sustained_magnitude_change",
-                description="Create a modified dataset with a sustained magnitude change incident",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "dataset_id": {
-                            "type": "string",
-                            "description": "Original dataset ID",
-                        },
-                        "incident_config": {
-                            "type": "object",
-                            "description": "Configuration for the sustained magnitude change",
-                            "properties": {
-                                "metadata_predicates": {
-                                    "type": "object",
-                                    "description": "Metadata filters to select time series",
-                                },
-                                "measurements": {
-                                    "type": "array",
-                                    "items": {"type": "string"},
-                                    "description": "List of measurements to modify",
-                                },
-                                "incident_start_timestamp": {
-                                    "type": "string",
-                                    "description": "ISO timestamp when change starts",
-                                },
-                                "incident_end_timestamp": {
-                                    "type": "string",
-                                    "description": "ISO timestamp when change ends",
-                                },
-                                "magnitude": {
-                                    "type": "number",
-                                    "description": "Magnitude of the change",
-                                },
-                            },
-                        },
-                        "organization_id": {
-                            "type": "string",
-                            "description": "Organization ID (required by Manta API)",
-                        },
-                        "project_id": {
-                            "type": "string",
-                            "description": "Project ID (required by Manta API)",
-                        },
-                    },
-                    "required": [
-                        "dataset_id",
-                        "incident_config",
-                        "organization_id",
-                        "project_id",
-                    ],
-                },
-            ),
-            types.Tool(
-                name="manta_create_data_outage",
-                description="Create a modified dataset with a data outage incident (missing data)",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "dataset_id": {
-                            "type": "string",
-                            "description": "Original dataset ID",
-                        },
-                        "incident_config": {
-                            "type": "object",
-                            "description": "Configuration for the data outage",
-                            "properties": {
-                                "metadata_predicates": {
-                                    "type": "object",
-                                    "description": "Metadata filters to select time series",
-                                },
-                                "measurements": {
-                                    "type": "array",
-                                    "items": {"type": "string"},
-                                    "description": "List of measurements to create outage for",
-                                },
-                                "incident_start_timestamp": {
-                                    "type": "string",
-                                    "description": "ISO timestamp when outage starts",
-                                },
-                                "incident_end_timestamp": {
-                                    "type": "string",
-                                    "description": "ISO timestamp when outage ends",
-                                },
-                            },
-                        },
-                        "organization_id": {
-                            "type": "string",
-                            "description": "Organization ID (required by Manta API)",
-                        },
-                        "project_id": {
-                            "type": "string",
-                            "description": "Project ID (required by Manta API)",
-                        },
-                    },
-                    "required": [
-                        "dataset_id",
-                        "incident_config",
-                        "organization_id",
-                        "project_id",
-                    ],
-                },
-            ),
-            types.Tool(
-                name="manta_create_value_ramp",
-                description="Create a modified dataset with a value ramp incident (gradual increase/decrease)",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "dataset_id": {
-                            "type": "string",
-                            "description": "Original dataset ID",
-                        },
-                        "incident_config": {
-                            "type": "object",
-                            "description": "Configuration for the value ramp",
-                            "properties": {
-                                "metadata_predicates": {
-                                    "type": "object",
-                                    "description": "Metadata filters to select time series",
-                                },
-                                "measurements": {
-                                    "type": "array",
-                                    "items": {"type": "string"},
-                                    "description": "List of measurements to apply ramp to",
-                                },
-                                "incident_start_timestamp": {
-                                    "type": "string",
-                                    "description": "ISO timestamp when ramp starts",
-                                },
-                                "incident_end_timestamp": {
-                                    "type": "string",
-                                    "description": "ISO timestamp when ramp ends",
-                                },
-                                "magnitude": {
-                                    "type": "number",
-                                    "description": "Total magnitude change over the ramp period",
-                                },
-                            },
-                        },
-                        "organization_id": {
-                            "type": "string",
-                            "description": "Organization ID (required by Manta API)",
-                        },
-                        "project_id": {
-                            "type": "string",
-                            "description": "Project ID (required by Manta API)",
-                        },
-                    },
-                    "required": [
-                        "dataset_id",
-                        "incident_config",
-                        "organization_id",
-                        "project_id",
-                    ],
-                },
-            ),
-            types.Tool(
-                name="manta_get_incident_dataset_ids",
-                description="Get all incident dataset IDs associated with an original dataset",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "dataset_id": {
-                            "type": "string",
-                            "description": "Original dataset ID",
-                        },
-                        "organization_id": {
-                            "type": "string",
-                            "description": "Organization ID (required by Manta API)",
-                        },
-                        "project_id": {
-                            "type": "string",
-                            "description": "Project ID (required by Manta API)",
-                        },
-                    },
-                    "required": ["dataset_id", "organization_id", "project_id"],
-                },
-            ),
-            # Manta Service - LLM Processing tools
-            types.Tool(
-                name="manta_process_llm_questions",
-                description="Process natural language questions using SQL Agent functionality against a dataset",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "dataset_id": {
-                            "type": "string",
-                            "description": "Dataset ID to query",
-                        },
-                        "questions": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Array of natural language questions to process",
-                        },
-                        "organization_id": {
-                            "type": "string",
-                            "description": "Organization ID (required by Manta API)",
-                        },
-                        "project_id": {
-                            "type": "string",
-                            "description": "Project ID (required by Manta API)",
-                        },
-                    },
-                    "required": [
-                        "dataset_id",
-                        "questions",
-                        "organization_id",
-                        "project_id",
-                    ],
                 },
             ),
         ]
@@ -1056,8 +963,14 @@ async def handle_call_tool(
                 types.TextContent(type="text", text=f"Error calling {name}: {str(e)}")
             ]
 
-    # Route Manta tools to manta_client
-    if name.startswith("manta_"):
+    # Route Manta tools to manta_client (includes v2 tools without manta_ prefix)
+    manta_v2_tools = [
+        "create_incident_dataset",
+        "generate_incident_prompts",
+        "list_incident_datasets",
+        "get_incident_prompts",
+    ]
+    if name in manta_v2_tools:
         if not manta_client:
             return [
                 types.TextContent(
