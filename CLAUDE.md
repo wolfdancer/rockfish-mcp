@@ -31,6 +31,7 @@ The application requires these environment variables (configured in `.env` file)
 - `ROCKFISH_ORGANIZATION_ID`: Organization ID (optional - uses default if not set)
 - `ROCKFISH_PROJECT_ID`: Project ID (optional - uses default if not set)
 - `MANTA_API_URL`: API URL for Manta service (optional - Manta tools only appear if this is set)
+- `INCIDENT_CREATION_TEST_DATASET`: Dataset ID for incident injection testing (optional - required only for running tests)
 
 Create a `.env` file with these variables for local development:
 ```bash
@@ -57,6 +58,31 @@ Use the MCP Inspector to test the server before connecting to Claude Desktop:
 npx @modelcontextprotocol/inspector /path/to/.venv/bin/python -m rockfish_mcp.server
 ```
 The Inspector provides an interactive web interface to test all available tools.
+
+### Running Tests
+The project includes automated tests for the Manta incident injection tools:
+```bash
+# Run all tests
+pytest tests/
+
+# Run specific test file
+pytest tests/test_create_incident_dataset.py
+
+# Run tests with verbose output
+pytest -v tests/
+```
+
+**Test Requirements:**
+- `ROCKFISH_API_KEY`: Required for authentication
+- `ROCKFISH_API_URL`: API endpoint (optional, defaults to https://api.rockfish.ai)
+- `MANTA_API_URL`: Manta service endpoint (required for Manta tests)
+- `ROCKFISH_ORGANIZATION_ID`: Organization ID (required for tests)
+- `ROCKFISH_PROJECT_ID`: Project ID (required for tests)
+- `INCIDENT_CREATION_TEST_DATASET`: Dataset ID to use for incident injection testing (required for create_incident_dataset tests)
+
+**Test Structure:**
+- [tests/test_create_incident_dataset.py](tests/test_create_incident_dataset.py): Tests the create_incident_dataset tool with configurations from [tests/incidents.yaml](tests/incidents.yaml)
+- [tests/incidents.yaml](tests/incidents.yaml): Defines test cases for all four incident types (instantaneous-spike, sustained-magnitude-change, data-outage, value-ramp)
 
 ## Architecture Overview
 
