@@ -423,7 +423,10 @@ async def handle_list_tools() -> List[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "The query to execute"},
+                    "query": {
+                        "type": "string",
+                        "description": "The SQL query to execute. REQUIRED SQL SYNTAX: Use dataset ID wrapped in double quotes as table name (e.g., \"rWBroVVFla7I0Fv9nBZXh\") and wrap column names in backticks (e.g., `column_name`). Example: SELECT `timestamp`, `value` FROM \"rWBroVVFla7I0Fv9nBZXh\" WHERE `status` = 'active'"
+                    },
                     "project_id": {
                         "type": "string",
                         "description": "Optional project ID to execute the query in",
@@ -440,7 +443,26 @@ async def handle_list_tools() -> List[types.Tool]:
             # Manta Service - Data Manipulation tools (Incident Injection v2)
             types.Tool(
                 name="create_incident_dataset",
-                description="Create a new dataset with injected incidents. Supports instantaneous-spike-data, sustained-magnitude-change-data, data-outage-data, and value-ramp-data incident types.",
+                description="""Create a new dataset with injected incidents. There are 4 suppported incidents and each incident type requires a specific configuration schema:
+
+INCIDENT TYPE TO CONFIG MAPPING:
+1. 'instantaneous-spike-data' → InstantaneousSpikeIncidentConfig
+   - Injects sudden spikes at a single timestamp
+   - Required fields: impacted_metadata_predicate, impacted_measurement, absolute_magnitude, timestamp_column, timestamp
+
+2. 'sustained-magnitude-change-data' → SustainedMagnitudeChangeIncidentConfig
+   - Applies a sustained change over a time period
+   - Required fields: impacted_metadata_predicate, impacted_measurement, delta_magnitude, timestamp_column, start_timestamp, end_timestamp
+
+3. 'data-outage-data' → DataOutageIncidentConfig
+   - Creates data gaps/outages over a time period
+   - Required fields: impacted_metadata_predicate, impacted_measurement, absolute_magnitude, timestamp_column, start_timestamp, end_timestamp
+
+4. 'value-ramp-data' → ValueRampIncidentConfig
+   - Applies gradual ramping changes over a time period
+   - Required fields: impacted_metadata_predicate, impacted_measurement, end_absolute_magnitude, slope, timestamp_column, start_timestamp, end_timestamp
+
+IMPORTANT: The incident_config object schema MUST match the selected incident_type.""",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -456,14 +478,14 @@ async def handle_list_tools() -> List[types.Tool]:
                                 "data-outage-data",
                                 "value-ramp-data",
                             ],
-                            "description": "Type of incident to inject",
+                            "description": "Type of incident to inject. MUST match the incident_config schema: instantaneous-spike-data→InstantaneousSpikeIncidentConfig, sustained-magnitude-change-data→SustainedMagnitudeChangeIncidentConfig, data-outage-data→DataOutageIncidentConfig, value-ramp-data→ValueRampIncidentConfig",
                         },
                         "incident_config": {
                             "type": "object",
-                            "description": "Configuration matching the incident type. Schema varies by incident_type.",
+                            "description": "Configuration object that MUST match the incident_type. See tool description for the exact mapping of incident_type to config schema.",
                             "oneOf": [
                                 {
-                                    "title": "InstantaneousSpikeIncidentConfig",
+                                    "title": "InstantaneousSpikeIncidentConfig (for incident_type='instantaneous-spike-data')",
                                     "type": "object",
                                     "properties": {
                                         "impacted_metadata_predicate": {
@@ -499,7 +521,7 @@ async def handle_list_tools() -> List[types.Tool]:
                                     "required": ["impacted_metadata_predicate", "impacted_measurement", "absolute_magnitude", "timestamp_column", "timestamp"]
                                 },
                                 {
-                                    "title": "SustainedMagnitudeChangeIncidentConfig",
+                                    "title": "SustainedMagnitudeChangeIncidentConfig (for incident_type='sustained-magnitude-change-data')",
                                     "type": "object",
                                     "properties": {
                                         "impacted_metadata_predicate": {
@@ -540,7 +562,7 @@ async def handle_list_tools() -> List[types.Tool]:
                                     "required": ["impacted_metadata_predicate", "impacted_measurement", "delta_magnitude", "timestamp_column", "start_timestamp", "end_timestamp"]
                                 },
                                 {
-                                    "title": "DataOutageIncidentConfig",
+                                    "title": "DataOutageIncidentConfig (for incident_type='data-outage-data')",
                                     "type": "object",
                                     "properties": {
                                         "impacted_metadata_predicate": {
@@ -581,7 +603,7 @@ async def handle_list_tools() -> List[types.Tool]:
                                     "required": ["impacted_metadata_predicate", "impacted_measurement", "absolute_magnitude", "timestamp_column", "start_timestamp", "end_timestamp"]
                                 },
                                 {
-                                    "title": "ValueRampIncidentConfig",
+                                    "title": "ValueRampIncidentConfig (for incident_type='value-ramp-data')",
                                     "type": "object",
                                     "properties": {
                                         "impacted_metadata_predicate": {
