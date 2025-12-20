@@ -135,7 +135,7 @@ which python
 Configure your API key and URL in the `.env` file:
 ```bash
 ROCKFISH_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-ROCKFISH_API_URL=https://sunset-beach.rockfish.ai
+ROCKFISH_API_URL=https://api.rockfish.ai
 ```
 
 7. **Restart Claude Desktop** after making these changes
@@ -164,7 +164,7 @@ npx @modelcontextprotocol/inspector /Users/shane/code/rockfish-mcp/.venv/bin/pyt
 #!/bin/bash
 # test-mcp.sh
 export ROCKFISH_API_KEY="your_api_key_here"
-export ROCKFISH_API_URL="https://sunset-beach.rockfish.ai"
+export ROCKFISH_API_URL="https://api.rockfish.ai"
 npx @modelcontextprotocol/inspector /Users/shane/code/rockfish-mcp/.venv/bin/python -m rockfish_mcp.server
 ```
 

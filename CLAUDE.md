@@ -187,4 +187,4 @@ All three clients abstract their respective complexities (REST API, Manta servic
 
 For complete API documentation, see:
 - **Rockfish API**: https://docs.rockfish.ai/openapi.yaml
-- **Manta Service**: https://manta.sunset-beach.rockfish.ai/openapi.json
+- **Manta Service**: https://manta.rockfish.ai/openapi.json

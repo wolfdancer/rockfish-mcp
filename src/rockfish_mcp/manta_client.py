@@ -15,14 +15,14 @@ class MantaClient:
     """Client for interacting with the Rockfish Manta API."""
 
     def __init__(
-        self, api_key: str, api_url: str = "https://manta.sunset-beach.rockfish.ai"
+        self, api_key: str, api_url: str = "https://manta.rockfish.ai"
     ):
         """
         Initialize the Manta client.
 
         Args:
             api_key: Rockfish API key for authentication
-            api_url: Base URL for the Manta API (default: https://manta.sunset-beach.rockfish.ai)
+            api_url: Base URL for the Manta API (default: https://manta.rockfish.ai)
         """
         self.api_key = api_key
         self.api_url = api_url.rstrip("/")
