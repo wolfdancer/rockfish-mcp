@@ -7,69 +7,14 @@ incident configuration defined in the file.
 
 import ast
 import json
-import os
 from pathlib import Path
 from typing import Any, Dict, List
 
 import pytest
-import pytest_asyncio
 import yaml
-from dotenv import load_dotenv
 from mcp import types
 
-import rockfish_mcp.server as server_module
-from rockfish_mcp.client import RockfishClient
-from rockfish_mcp.manta_client import MantaClient
-from rockfish_mcp.sdk_client import RockfishSDKClient
 from rockfish_mcp.server import handle_call_tool
-
-# Load environment variables
-load_dotenv()
-
-
-@pytest_asyncio.fixture(scope="session", autouse=True)
-async def initialize_server_clients():
-    """
-    Initialize the server's global clients before running tests.
-
-    This fixture runs once per test session and initializes the global
-    rockfish_client, manta_client, and sdk_client in the server module
-    so that handle_call_tool() can use them.
-    """
-    api_key = os.getenv("ROCKFISH_API_KEY")
-    api_url = os.getenv("ROCKFISH_API_URL", "https://api.rockfish.ai")
-    manta_api_url = os.getenv("MANTA_API_URL")
-    organization_id = os.getenv("ROCKFISH_ORGANIZATION_ID")
-    project_id = os.getenv("ROCKFISH_PROJECT_ID")
-
-    if not api_key:
-        pytest.skip("ROCKFISH_API_KEY not set")
-
-    if not manta_api_url:
-        pytest.skip("MANTA_API_URL not set")
-
-    # Initialize global clients in the server module
-    server_module.rockfish_client = RockfishClient(
-        api_key=api_key,
-        api_url=api_url,
-        organization_id=organization_id,
-        project_id=project_id,
-    )
-
-    server_module.sdk_client = RockfishSDKClient(
-        API_KEY=api_key,
-        API_URL=api_url,
-        ORGANIZATION_ID=organization_id,
-        PROJECT_ID=project_id,
-    )
-
-    server_module.manta_client = MantaClient(api_key=api_key, api_url=manta_api_url)
-
-    yield
-
-    # Cleanup
-    if server_module.sdk_client:
-        await server_module.sdk_client.close()
 
 
 def load_incident_configs() -> List[Dict[str, Any]]:
@@ -99,30 +44,6 @@ incident_configs = load_incident_configs()
 
 class TestCreateIncidentDataset:
     """Test class for create_incident_dataset tool."""
-
-    @pytest.fixture(scope="class")
-    def organization_id(self):
-        """Get organization ID from environment."""
-        org_id = os.getenv("ROCKFISH_ORGANIZATION_ID")
-        if not org_id:
-            pytest.skip("ROCKFISH_ORGANIZATION_ID not set")
-        return org_id
-
-    @pytest.fixture(scope="class")
-    def project_id(self):
-        """Get project ID from environment."""
-        proj_id = os.getenv("ROCKFISH_PROJECT_ID")
-        if not proj_id:
-            pytest.skip("ROCKFISH_PROJECT_ID not set")
-        return proj_id
-
-    @pytest.fixture(scope="class")
-    def dataset_id(self):
-        """Get dataset ID for testing from environment."""
-        ds_id = os.getenv("INCIDENT_CREATION_TEST_DATASET")
-        if not ds_id:
-            pytest.skip("INCIDENT_CREATION_TEST_DATASET not set")
-        return ds_id
 
     @pytest.mark.parametrize(
         "incident",
