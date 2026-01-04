@@ -11,6 +11,9 @@ pip install -e ".[dev]"
 
 # OR install from requirements.txt (exact locked versions for development)
 pip install -r requirements.txt
+
+# OR install dev dependencies separately (after installing the package)
+pip install -r requirements-dev.txt
 ```
 
 **Important**: The Rockfish SDK package is hosted on a custom package repository at `https://packages.rockfish.ai`. The [requirements.txt](requirements.txt) file uses `--find-links https://packages.rockfish.ai` to enable pip to discover and install packages from this repository.
