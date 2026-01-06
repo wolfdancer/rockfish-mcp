@@ -49,7 +49,7 @@ class TestListResources:
 
     @pytest.mark.asyncio
     async def test_list_worker_sets(self, organization_id: str, project_id: str):
-        """Test listing worker sets returns a list."""
+        """Test listing worker sets returns a list and test getting actions for each."""
         arguments = {
             "organization_id": organization_id,
             "project_id": project_id,
@@ -75,6 +75,79 @@ class TestListResources:
 
         # Verify we got a list back
         assert isinstance(worker_sets, list), "Result should be a list"
+
+        # Track results for each worker set
+        successful_worker_sets = []
+        failed_worker_sets = []
+
+        # Iterate through each worker set and call get_worker_set_actions
+        for worker_set in worker_sets:
+            assert (
+                "id" in worker_set
+            ), f"Worker set should have an 'id' field: {worker_set}"
+            worker_set_id = worker_set["id"]
+            worker_set_name = worker_set.get("name", "unknown")
+
+            # Call get_worker_set_actions for this worker set
+            actions_result = await handle_call_tool(
+                "get_worker_set_actions", {"id": worker_set_id}
+            )
+
+            assert (
+                actions_result is not None
+            ), f"Actions result should not be None for worker set {worker_set_id} ({worker_set_name})"
+            assert (
+                len(actions_result) > 0
+            ), f"Actions result should contain content for worker set {worker_set_id} ({worker_set_name})"
+
+            # Extract and parse the actions response
+            actions_content = actions_result[0]
+            assert isinstance(
+                actions_content, types.TextContent
+            ), f"Actions result should be TextContent for worker set {worker_set_id} ({worker_set_name})"
+            actions_text = actions_content.text
+
+            # Check if it's an error message
+            if actions_text.startswith("Error calling"):
+                failed_worker_sets.append(
+                    {
+                        "id": worker_set_id,
+                        "name": worker_set_name,
+                        "error": actions_text,
+                    }
+                )
+                continue
+
+            # Parse the actions response
+            try:
+                actions = json.loads(actions_text)
+            except json.JSONDecodeError:
+                actions = ast.literal_eval(actions_text)
+
+            # Verify actions structure (should be a list or dict)
+            assert isinstance(
+                actions, (list, dict)
+            ), f"Actions should be a list or dict for worker set {worker_set_id} ({worker_set_name})"
+
+            successful_worker_sets.append(
+                {"id": worker_set_id, "name": worker_set_name, "actions": actions}
+            )
+
+        # If any worker sets failed, fail the test with detailed information
+        if failed_worker_sets:
+            error_details = "\n".join(
+                [
+                    f"  - {ws['name']} (ID: {ws['id']}): {ws['error']}"
+                    for ws in failed_worker_sets
+                ]
+            )
+            success_details = "\n".join(
+                [f"  - {ws['name']} (ID: {ws['id']})" for ws in successful_worker_sets]
+            )
+            pytest.fail(
+                f"Failed to get actions for {len(failed_worker_sets)} worker set(s):\n{error_details}\n\n"
+                f"Successfully retrieved actions for {len(successful_worker_sets)} worker set(s):\n{success_details}"
+            )
 
     @pytest.mark.asyncio
     async def test_list_available_actions(self):
