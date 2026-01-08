@@ -14,9 +14,7 @@ import httpx
 class MantaClient:
     """Client for interacting with the Rockfish Manta API."""
 
-    def __init__(
-        self, api_key: str, api_url: str = "https://manta.rockfish.ai"
-    ):
+    def __init__(self, api_key: str, api_url: str = "https://manta.rockfish.ai"):
         """
         Initialize the Manta client.
 

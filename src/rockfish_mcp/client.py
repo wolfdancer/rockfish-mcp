@@ -85,6 +85,10 @@ class RockfishClient:
             ws_id = arguments["id"]
             return await self._request("GET", f"/worker-set/{ws_id}/actions")
 
+        # Worker Group endpoints
+        elif tool_name == "list_worker_groups":
+            return await self._request("GET", "/worker-group")
+
         elif tool_name == "list_available_actions":
             worker_groups = await self._request("GET", "/worker-group")
 

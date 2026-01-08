@@ -140,6 +140,12 @@ async def handle_list_tools() -> List[types.Tool]:
                 "required": ["id"],
             },
         ),
+        # Worker Group tools
+        types.Tool(
+            name="list_worker_groups",
+            description="List all worker groups",
+            inputSchema={"type": "object", "properties": {}, "required": []},
+        ),
         # Worker tools
         types.Tool(
             name="list_available_actions",
@@ -425,7 +431,7 @@ async def handle_list_tools() -> List[types.Tool]:
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "The SQL query to execute. REQUIRED SQL SYNTAX: Use dataset ID wrapped in double quotes as table name (e.g., \"rWBroVVFla7I0Fv9nBZXh\") and wrap column names in backticks (e.g., `column_name`). Example: SELECT `timestamp`, `value` FROM \"rWBroVVFla7I0Fv9nBZXh\" WHERE `status` = 'active'"
+                        "description": 'The SQL query to execute. REQUIRED SQL SYNTAX: Use dataset ID wrapped in double quotes as table name (e.g., "rWBroVVFla7I0Fv9nBZXh") and wrap column names in backticks (e.g., `column_name`). Example: SELECT `timestamp`, `value` FROM "rWBroVVFla7I0Fv9nBZXh" WHERE `status` = \'active\'',
                     },
                     "project_id": {
                         "type": "string",
@@ -494,31 +500,39 @@ IMPORTANT: The incident_config object schema MUST match the selected incident_ty
                                                 "type": "object",
                                                 "properties": {
                                                     "column_name": {"type": "string"},
-                                                    "value": {"description": "Any value type"}
+                                                    "value": {
+                                                        "description": "Any value type"
+                                                    },
                                                 },
-                                                "required": ["column_name", "value"]
+                                                "required": ["column_name", "value"],
                                             },
-                                            "description": "List of metadata predicates to identify impacted rows"
+                                            "description": "List of metadata predicates to identify impacted rows",
                                         },
                                         "impacted_measurement": {
                                             "type": "string",
-                                            "description": "Name of the measurement column to inject spike into"
+                                            "description": "Name of the measurement column to inject spike into",
                                         },
                                         "absolute_magnitude": {
                                             "type": ["number", "integer"],
-                                            "description": "Absolute spike value to inject"
+                                            "description": "Absolute spike value to inject",
                                         },
                                         "timestamp_column": {
                                             "type": "string",
-                                            "description": "Name of the timestamp column"
+                                            "description": "Name of the timestamp column",
                                         },
                                         "timestamp": {
                                             "type": "string",
                                             "format": "date-time",
-                                            "description": "Timestamp when spike occurs (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')"
-                                        }
+                                            "description": "Timestamp when spike occurs (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')",
+                                        },
                                     },
-                                    "required": ["impacted_metadata_predicate", "impacted_measurement", "absolute_magnitude", "timestamp_column", "timestamp"]
+                                    "required": [
+                                        "impacted_metadata_predicate",
+                                        "impacted_measurement",
+                                        "absolute_magnitude",
+                                        "timestamp_column",
+                                        "timestamp",
+                                    ],
                                 },
                                 {
                                     "title": "SustainedMagnitudeChangeIncidentConfig (for incident_type='sustained-magnitude-change-data')",
@@ -530,36 +544,45 @@ IMPORTANT: The incident_config object schema MUST match the selected incident_ty
                                                 "type": "object",
                                                 "properties": {
                                                     "column_name": {"type": "string"},
-                                                    "value": {"description": "Any value type"}
+                                                    "value": {
+                                                        "description": "Any value type"
+                                                    },
                                                 },
-                                                "required": ["column_name", "value"]
+                                                "required": ["column_name", "value"],
                                             },
-                                            "description": "List of metadata predicates to identify impacted rows"
+                                            "description": "List of metadata predicates to identify impacted rows",
                                         },
                                         "impacted_measurement": {
                                             "type": "string",
-                                            "description": "Name of the measurement column to modify"
+                                            "description": "Name of the measurement column to modify",
                                         },
                                         "delta_magnitude": {
                                             "type": ["number", "integer"],
-                                            "description": "Delta value to add to measurements during incident period"
+                                            "description": "Delta value to add to measurements during incident period",
                                         },
                                         "timestamp_column": {
                                             "type": "string",
-                                            "description": "Name of the timestamp column"
+                                            "description": "Name of the timestamp column",
                                         },
                                         "start_timestamp": {
                                             "type": "string",
                                             "format": "date-time",
-                                            "description": "Start timestamp of sustained change (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')"
+                                            "description": "Start timestamp of sustained change (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')",
                                         },
                                         "end_timestamp": {
                                             "type": "string",
                                             "format": "date-time",
-                                            "description": "End timestamp of sustained change (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')"
-                                        }
+                                            "description": "End timestamp of sustained change (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')",
+                                        },
                                     },
-                                    "required": ["impacted_metadata_predicate", "impacted_measurement", "delta_magnitude", "timestamp_column", "start_timestamp", "end_timestamp"]
+                                    "required": [
+                                        "impacted_metadata_predicate",
+                                        "impacted_measurement",
+                                        "delta_magnitude",
+                                        "timestamp_column",
+                                        "start_timestamp",
+                                        "end_timestamp",
+                                    ],
                                 },
                                 {
                                     "title": "DataOutageIncidentConfig (for incident_type='data-outage-data')",
@@ -571,36 +594,45 @@ IMPORTANT: The incident_config object schema MUST match the selected incident_ty
                                                 "type": "object",
                                                 "properties": {
                                                     "column_name": {"type": "string"},
-                                                    "value": {"description": "Any value type"}
+                                                    "value": {
+                                                        "description": "Any value type"
+                                                    },
                                                 },
-                                                "required": ["column_name", "value"]
+                                                "required": ["column_name", "value"],
                                             },
-                                            "description": "List of metadata predicates to identify impacted rows"
+                                            "description": "List of metadata predicates to identify impacted rows",
                                         },
                                         "impacted_measurement": {
                                             "type": "string",
-                                            "description": "Name of the measurement column to set to outage value"
+                                            "description": "Name of the measurement column to set to outage value",
                                         },
                                         "absolute_magnitude": {
                                             "type": ["number", "integer"],
-                                            "description": "Value to set during outage (typically 0 or null-equivalent)"
+                                            "description": "Value to set during outage (typically 0 or null-equivalent)",
                                         },
                                         "timestamp_column": {
                                             "type": "string",
-                                            "description": "Name of the timestamp column"
+                                            "description": "Name of the timestamp column",
                                         },
                                         "start_timestamp": {
                                             "type": "string",
                                             "format": "date-time",
-                                            "description": "Start timestamp of outage (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')"
+                                            "description": "Start timestamp of outage (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')",
                                         },
                                         "end_timestamp": {
                                             "type": "string",
                                             "format": "date-time",
-                                            "description": "End timestamp of outage (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')"
-                                        }
+                                            "description": "End timestamp of outage (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')",
+                                        },
                                     },
-                                    "required": ["impacted_metadata_predicate", "impacted_measurement", "absolute_magnitude", "timestamp_column", "start_timestamp", "end_timestamp"]
+                                    "required": [
+                                        "impacted_metadata_predicate",
+                                        "impacted_measurement",
+                                        "absolute_magnitude",
+                                        "timestamp_column",
+                                        "start_timestamp",
+                                        "end_timestamp",
+                                    ],
                                 },
                                 {
                                     "title": "ValueRampIncidentConfig (for incident_type='value-ramp-data')",
@@ -612,42 +644,52 @@ IMPORTANT: The incident_config object schema MUST match the selected incident_ty
                                                 "type": "object",
                                                 "properties": {
                                                     "column_name": {"type": "string"},
-                                                    "value": {"description": "Any value type"}
+                                                    "value": {
+                                                        "description": "Any value type"
+                                                    },
                                                 },
-                                                "required": ["column_name", "value"]
+                                                "required": ["column_name", "value"],
                                             },
-                                            "description": "List of metadata predicates to identify impacted rows"
+                                            "description": "List of metadata predicates to identify impacted rows",
                                         },
                                         "impacted_measurement": {
                                             "type": "string",
-                                            "description": "Name of the measurement column to ramp"
+                                            "description": "Name of the measurement column to ramp",
                                         },
                                         "end_absolute_magnitude": {
                                             "type": ["number", "integer"],
-                                            "description": "Final absolute value at end of ramp"
+                                            "description": "Final absolute value at end of ramp",
                                         },
                                         "slope": {
                                             "type": ["number", "integer"],
-                                            "description": "Rate of change per time unit"
+                                            "description": "Rate of change per time unit",
                                         },
                                         "timestamp_column": {
                                             "type": "string",
-                                            "description": "Name of the timestamp column"
+                                            "description": "Name of the timestamp column",
                                         },
                                         "start_timestamp": {
                                             "type": "string",
                                             "format": "date-time",
-                                            "description": "Start timestamp of ramp (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')"
+                                            "description": "Start timestamp of ramp (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')",
                                         },
                                         "end_timestamp": {
                                             "type": "string",
                                             "format": "date-time",
-                                            "description": "End timestamp of ramp (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')"
-                                        }
+                                            "description": "End timestamp of ramp (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')",
+                                        },
                                     },
-                                    "required": ["impacted_metadata_predicate", "impacted_measurement", "end_absolute_magnitude", "slope", "timestamp_column", "start_timestamp", "end_timestamp"]
-                                }
-                            ]
+                                    "required": [
+                                        "impacted_metadata_predicate",
+                                        "impacted_measurement",
+                                        "end_absolute_magnitude",
+                                        "slope",
+                                        "timestamp_column",
+                                        "start_timestamp",
+                                        "end_timestamp",
+                                    ],
+                                },
+                            ],
                         },
                         "organization_id": {
                             "type": "string",

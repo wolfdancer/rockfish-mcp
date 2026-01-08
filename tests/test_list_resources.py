@@ -150,6 +150,37 @@ class TestListResources:
             )
 
     @pytest.mark.asyncio
+    async def test_list_worker_groups(self):
+        """Test listing worker groups returns a dict with groups list."""
+        arguments = {}
+
+        result = await handle_call_tool("list_worker_groups", arguments)
+
+        assert result is not None, "Result should not be None"
+        assert len(result) > 0, "Result should contain content"
+
+        # Extract and parse the response
+        first_content = result[0]
+        assert isinstance(
+            first_content, types.TextContent
+        ), "Result should be TextContent"
+        result_text = first_content.text
+
+        # Parse the response
+        try:
+            response = json.loads(result_text)
+        except json.JSONDecodeError:
+            response = ast.literal_eval(result_text)
+
+        # Verify we got a dict with 'groups' key
+        assert isinstance(response, dict), "Result should be a dict"
+        assert "groups" in response, "Result should contain 'groups' key"
+        groups = response["groups"]
+        assert isinstance(groups, list), "groups should be a list"
+        # Worker groups should not be empty
+        assert len(groups) > 0, "Worker groups list should not be empty"
+
+    @pytest.mark.asyncio
     async def test_list_available_actions(self):
         """Test listing available actions returns a dict with actions list."""
         arguments = {}
