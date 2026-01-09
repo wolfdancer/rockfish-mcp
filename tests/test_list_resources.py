@@ -14,6 +14,42 @@ from mcp import types
 from rockfish_mcp.server import handle_call_tool
 
 
+def parse_response_text(result_text: str, context: str = "response") -> any:
+    """
+    Parse response text from the MCP server, handling both JSON and Python literals.
+
+    Args:
+        result_text: The response text to parse
+        context: Description of what is being parsed (for error messages)
+
+    Returns:
+        Parsed Python object (dict, list, etc.)
+
+    Raises:
+        pytest.fail: If the response is an error message or cannot be parsed
+    """
+    # Check if this is an error message before parsing
+    if result_text.startswith("Error calling"):
+        pytest.fail(f"API call failed for {context}: {result_text}")
+
+    # Try JSON first
+    try:
+        return json.loads(result_text)
+    except json.JSONDecodeError:
+        pass
+
+    # Try Python literal_eval
+    try:
+        return ast.literal_eval(result_text)
+    except (ValueError, SyntaxError) as e:
+        pytest.fail(
+            f"Failed to parse {context} as JSON or Python literal.\n"
+            f"Parse error: {e}\n"
+            f"Response text: {result_text[:500]}"
+        )
+
+
+
 class TestListResources:
     """Test class for list_ tools."""
 
@@ -38,10 +74,7 @@ class TestListResources:
         result_text = first_content.text
 
         # Parse the response
-        try:
-            databases = json.loads(result_text)
-        except json.JSONDecodeError:
-            databases = ast.literal_eval(result_text)
+        databases = parse_response_text(result_text, "list_databases")
 
         # Verify we got a list back
         assert isinstance(databases, list), "Result should be a list"
@@ -68,10 +101,7 @@ class TestListResources:
         result_text = first_content.text
 
         # Parse the response
-        try:
-            worker_sets = json.loads(result_text)
-        except json.JSONDecodeError:
-            worker_sets = ast.literal_eval(result_text)
+        worker_sets = parse_response_text(result_text, "list_worker_sets")
 
         # Verify we got a list back
         assert isinstance(worker_sets, list), "Result should be a list"
@@ -118,11 +148,21 @@ class TestListResources:
                 )
                 continue
 
-            # Parse the actions response
+            # Parse the actions response with proper error handling
             try:
-                actions = json.loads(actions_text)
-            except json.JSONDecodeError:
-                actions = ast.literal_eval(actions_text)
+                actions = parse_response_text(
+                    actions_text, f"get_worker_set_actions for {worker_set_name}"
+                )
+            except Exception as e:
+                # If parsing fails, treat it as a failed worker set
+                failed_worker_sets.append(
+                    {
+                        "id": worker_set_id,
+                        "name": worker_set_name,
+                        "error": str(e),
+                    }
+                )
+                continue
 
             # Verify actions structure (should be a list or dict)
             assert isinstance(
@@ -198,10 +238,7 @@ class TestListResources:
         result_text = first_content.text
 
         # Parse the response
-        try:
-            response = json.loads(result_text)
-        except json.JSONDecodeError:
-            response = ast.literal_eval(result_text)
+        response = parse_response_text(result_text, "list_available_actions")
 
         # Verify we got a dict with 'actions' key
         assert isinstance(response, dict), "Result should be a dict"
@@ -232,10 +269,7 @@ class TestListResources:
         result_text = first_content.text
 
         # Parse the response
-        try:
-            workflows = json.loads(result_text)
-        except json.JSONDecodeError:
-            workflows = ast.literal_eval(result_text)
+        workflows = parse_response_text(result_text, "list_workflows")
 
         # Verify we got a list back
         assert isinstance(workflows, list), "Result should be a list"
@@ -261,10 +295,7 @@ class TestListResources:
         result_text = first_content.text
 
         # Parse the response
-        try:
-            models = json.loads(result_text)
-        except json.JSONDecodeError:
-            models = ast.literal_eval(result_text)
+        models = parse_response_text(result_text, "list_models")
 
         # Verify we got a list back
         assert isinstance(models, list), "Result should be a list"
@@ -287,10 +318,7 @@ class TestListResources:
         result_text = first_content.text
 
         # Parse the response
-        try:
-            organizations = json.loads(result_text)
-        except json.JSONDecodeError:
-            organizations = ast.literal_eval(result_text)
+        organizations = parse_response_text(result_text, "list_organizations")
 
         # Verify we got a list back
         assert isinstance(organizations, list), "Result should be a list"
@@ -317,10 +345,7 @@ class TestListResources:
         result_text = first_content.text
 
         # Parse the response
-        try:
-            projects = json.loads(result_text)
-        except json.JSONDecodeError:
-            projects = ast.literal_eval(result_text)
+        projects = parse_response_text(result_text, "list_projects")
 
         # Verify we got a list back
         assert isinstance(projects, list), "Result should be a list"
@@ -348,10 +373,7 @@ class TestListResources:
         result_text = first_content.text
 
         # Parse the response
-        try:
-            datasets = json.loads(result_text)
-        except json.JSONDecodeError:
-            datasets = ast.literal_eval(result_text)
+        datasets = parse_response_text(result_text, "list_datasets")
 
         # Verify we got a list back
         assert isinstance(datasets, list), "Result should be a list"
@@ -381,10 +403,7 @@ class TestListResources:
         result_text = first_content.text
 
         # Parse the response
-        try:
-            response = json.loads(result_text)
-        except json.JSONDecodeError:
-            response = ast.literal_eval(result_text)
+        response = parse_response_text(result_text, "list_incident_datasets")
 
         # Verify we got a dict with 'dataset_ids' key
         assert isinstance(response, dict), "Result should be a dict"
