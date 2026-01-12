@@ -5,7 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ### Installation and Setup
+
+**IMPORTANT**: Always use a virtual environment when running Python scripts in this project. Prefer using the existing virtual environment at the project root if it exists (commonly named `.venv/` or `venv/`).
+
 ```bash
+# Create and activate virtual environment if it doesn't exist
+python3 -m venv .venv
+source .venv/bin/activate  # On macOS/Linux
+# OR
+.venv\Scripts\activate  # On Windows
+
 # Install in development mode with dev dependencies (includes black and isort)
 pip install -e ".[dev]"
 
@@ -63,28 +72,47 @@ npx @modelcontextprotocol/inspector /path/to/.venv/bin/python -m rockfish_mcp.se
 The Inspector provides an interactive web interface to test all available tools.
 
 ### Running Tests
-The project includes automated tests for the Manta incident injection tools:
+The project includes automated tests for both list tools and Manta incident injection tools:
 ```bash
-# Run all tests
+# Run all tests (uses .env by default)
 pytest tests/
 
+# Run tests with a specific environment file (via custom --env option)
+pytest tests/ --env=.env.staging.local
+pytest tests/ --env=.env.prod.local
+
 # Run specific test file
+pytest tests/test_list_resources.py
 pytest tests/test_create_incident_dataset.py
+pytest tests/test_workerset_actions.py
+
+# Run specific test class or method
+pytest tests/test_list_resources.py::TestListResources::test_list_databases
+pytest tests/test_create_incident_dataset.py::TestIncidentCreation::test_instantaneous_spike
 
 # Run tests with verbose output
 pytest -v tests/
+
+# Run tests with print output visible
+pytest -s tests/
+
+# Generate HTML test report
+pytest tests/ --html=report.html --self-contained-html
 ```
 
 **Test Requirements:**
-- `ROCKFISH_API_KEY`: Required for authentication
+- `ROCKFISH_API_KEY`: Required for authentication (all tests)
 - `ROCKFISH_API_URL`: API endpoint (optional, defaults to https://api.rockfish.ai)
-- `MANTA_API_URL`: Manta service endpoint (required for Manta tests)
-- `ROCKFISH_ORGANIZATION_ID`: Organization ID (required for tests)
-- `ROCKFISH_PROJECT_ID`: Project ID (required for tests)
-- `INCIDENT_CREATION_TEST_DATASET`: Dataset ID to use for incident injection testing (required for create_incident_dataset tests)
+- `ROCKFISH_ORGANIZATION_ID`: Organization ID (required for most tests)
+- `ROCKFISH_PROJECT_ID`: Project ID (required for most tests)
+- `MANTA_API_URL`: Manta service endpoint (required for Manta tests only)
+- `INCIDENT_CREATION_TEST_DATASET`: Dataset ID to use for incident injection testing (required for create_incident_dataset tests only)
 
 **Test Structure:**
+- [tests/conftest.py](tests/conftest.py): Shared pytest fixtures for client initialization and environment setup (includes custom `--env` option for loading different .env files)
+- [tests/test_list_resources.py](tests/test_list_resources.py): Tests all list_ tools (list_databases, list_worker_sets, list_workflows, list_models, list_projects, list_datasets, list_organizations, list_worker_groups, list_available_actions, list_incident_datasets)
 - [tests/test_create_incident_dataset.py](tests/test_create_incident_dataset.py): Tests the create_incident_dataset tool with configurations from [tests/incidents.yaml](tests/incidents.yaml)
+- [tests/test_workerset_actions.py](tests/test_workerset_actions.py): Tests worker set action listing functionality
 - [tests/incidents.yaml](tests/incidents.yaml): Defines test cases for all four incident types (instantaneous-spike, sustained-magnitude-change, data-outage, value-ramp)
 
 ## Architecture Overview
@@ -105,7 +133,7 @@ src/rockfish_mcp/
 
 **Server ([server.py](src/rockfish_mcp/server.py))**: The main MCP server that:
 - Defines tools across multiple resource categories
-  - Rockfish API: Databases, Worker Sets, Workflows, Models, Projects, Datasets (21 tools, always available)
+  - Rockfish API: Databases, Worker Sets, Worker Groups, Workflows, Models, Projects, Datasets, Organizations (22+ tools, always available)
   - Manta Service: Incident Injection and Prompt Management (4 tools, conditional)
   - SDK Tools: Synthetic Data Generation workflow tools (9 tools, always available)
 - Conditionally loads Manta tools only when `MANTA_API_URL` environment variable is set
@@ -154,10 +182,12 @@ src/rockfish_mcp/
 The server exposes CRUD operations mapping to these endpoints:
 - **Databases**: `/database` endpoints (GET, POST, PUT, DELETE)
 - **Worker Sets**: `/worker-set` endpoints (GET, POST, DELETE - no update)
+- **Worker Groups**: `/worker-group` endpoints (GET list only)
 - **Workflows**: `/workflow` endpoints (GET, POST, PUT)
 - **Models**: `/models` endpoints (GET, POST, DELETE - note different path)
 - **Projects**: `/project` endpoints (GET, POST, PATCH)
 - **Datasets**: `/dataset` endpoints (GET, POST, PATCH, DELETE)
+- **Organizations**: `/organization` endpoints (GET current org)
 
 #### Manta Service Endpoints (Optional, v2)
 The Manta service provides incident injection capabilities for time-series datasets. These tools are only available when `MANTA_API_URL` is configured:

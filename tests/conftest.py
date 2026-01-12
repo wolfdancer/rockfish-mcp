@@ -16,12 +16,19 @@ from rockfish_mcp.client import RockfishClient
 from rockfish_mcp.manta_client import MantaClient
 from rockfish_mcp.sdk_client import RockfishSDKClient
 
-# Load environment variables
-load_dotenv()
+
+def pytest_addoption(parser):
+    """Add custom command-line options to pytest."""
+    parser.addoption(
+        "--env",
+        action="store",
+        default=".env",
+        help="Path to the environment file to load (default: .env)",
+    )
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
-async def initialize_server_clients():
+async def initialize_server_clients(request):
     """
     Initialize the server's global clients before running tests.
 
@@ -29,6 +36,11 @@ async def initialize_server_clients():
     rockfish_client, manta_client, and sdk_client in the server module
     so that handle_call_tool() can use them.
     """
+    # Load environment variables from specified file
+    # Use override=True to ensure the specified env file takes precedence
+    env_file = request.config.getoption("--env")
+    load_dotenv(env_file, override=True)
+
     api_key = os.getenv("ROCKFISH_API_KEY")
     api_url = os.getenv("ROCKFISH_API_URL", "https://api.rockfish.ai")
     manta_api_url = os.getenv("MANTA_API_URL")
