@@ -32,8 +32,8 @@
 
 - type: value-ramp-data
   configuration:
-    end_absolute_magnitude: 50
-    slope: 0.5
+    start_magnitude: 0
+    end_magnitude: 50
     impacted_measurement: "comments"
     impacted_metadata_predicate:
       - column_name: "creatorEmail"
