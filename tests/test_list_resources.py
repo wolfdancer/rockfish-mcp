@@ -11,7 +11,8 @@ import json
 import pytest
 from mcp import types
 
-from rockfish_mcp.server import handle_call_tool
+import rockfish_mcp.server as server_module
+from rockfish_mcp.server import handle_call_tool, handle_list_tools
 
 
 def parse_response_text(result_text: str, context: str = "response") -> any:
@@ -379,34 +380,18 @@ class TestListResources:
         assert isinstance(datasets, list), "Result should be a list"
 
     @pytest.mark.asyncio
-    async def test_list_incident_datasets(
-        self, organization_id: str, project_id: str, dataset_id: str, manta_api_url: str
-    ):
-        """Test listing incident datasets returns a dict with dataset_ids list."""
-        # This test requires Manta API to be configured
-        arguments = {
-            "dataset_id": dataset_id,
-            "organization_id": organization_id,
-            "project_id": project_id,
-        }
+    async def test_manta_tools_are_registered(self):
+        """Test that new Manta analytics/scenarios tools are exposed when configured."""
+        original_manta_client = server_module.manta_client
+        try:
+            server_module.manta_client = object()
+            tools = await handle_list_tools()
+        finally:
+            server_module.manta_client = original_manta_client
 
-        result = await handle_call_tool("list_incident_datasets", arguments)
-
-        assert result is not None, "Result should not be None"
-        assert len(result) > 0, "Result should contain content"
-
-        # Extract and parse the response
-        first_content = result[0]
-        assert isinstance(
-            first_content, types.TextContent
-        ), "Result should be TextContent"
-        result_text = first_content.text
-
-        # Parse the response
-        response = parse_response_text(result_text, "list_incident_datasets")
-
-        # Verify we got a dict with 'dataset_ids' key
-        assert isinstance(response, dict), "Result should be a dict"
-        assert "dataset_ids" in response, "Result should contain 'dataset_ids' key"
-        dataset_ids = response["dataset_ids"]
-        assert isinstance(dataset_ids, list), "dataset_ids should be a list"
+        tool_names = {tool.name for tool in tools}
+        assert "discover_schema" in tool_names
+        assert "generate_test_suite" in tool_names
+        assert "execute_query" in tool_names
+        assert "execute_nl_query" in tool_names
+        assert "inject_scenario" in tool_names

@@ -1,11 +1,9 @@
-"""
-Manta service client for Rockfish MCP.
+"""Manta service client for Rockfish MCP.
 
-Handles API calls to the Manta service for dataset pattern injection
-and test case generation.
+Handles Analytics and Scenarios API calls for schema discovery,
+test-suite generation, querying, and scenario injection.
 """
 
-import os
 from typing import Any
 
 import httpx
@@ -25,7 +23,7 @@ class MantaClient:
         self.api_key = api_key
         self.api_url = api_url.rstrip("/")
         self.headers = {
-            "X-API-Key": f"Bearer {api_key}",
+            "X-Api-Key": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
 
@@ -46,48 +44,66 @@ class MantaClient:
             httpx.HTTPStatusError: If the API request fails
         """
         async with httpx.AsyncClient() as client:
-            # Extract common headers required by Manta API
             extra_headers = {}
             if "organization_id" in arguments:
-                extra_headers["X-Organization-ID"] = arguments["organization_id"]
+                extra_headers["X-Organization-Id"] = arguments["organization_id"]
             if "project_id" in arguments:
-                extra_headers["X-Project-ID"] = arguments["project_id"]
+                extra_headers["X-Project-Id"] = arguments["project_id"]
 
             headers = {**self.headers, **extra_headers}
 
-            # Route to appropriate endpoint based on tool name
-            # V2 Incident Injection Tools
-            if tool_name == "create_incident_dataset":
-                incident_type = arguments["incident_type"]
+            if tool_name == "discover_schema":
                 response = await client.post(
-                    f"{self.api_url}/{incident_type}",
+                    f"{self.api_url}/analytics/discover-schema",
                     headers=headers,
-                    json={
-                        "dataset_id": arguments["dataset_id"],
-                        "incident_config": arguments["incident_config"],
-                    },
+                    json=self._build_payload(arguments, ["dataset_id", "csv_content"]),
                 )
 
-            elif tool_name == "generate_incident_prompts":
+            elif tool_name == "generate_test_suite":
                 response = await client.post(
-                    f"{self.api_url}/prompts",
+                    f"{self.api_url}/analytics/generate-test-suite",
                     headers=headers,
-                    json={"dataset_id": arguments["dataset_id"]},
+                    json=self._build_payload(
+                        arguments, ["dataset_id", "csv_content", "schema"]
+                    ),
                 )
 
-            elif tool_name == "list_incident_datasets":
+            elif tool_name == "execute_query":
                 response = await client.post(
-                    f"{self.api_url}/incident-dataset-ids",
+                    f"{self.api_url}/analytics/execute-query",
                     headers=headers,
-                    json={"dataset_id": arguments["dataset_id"]},
+                    json=self._build_payload(
+                        arguments,
+                        ["dataset_id", "query", "timestamp_column", "include_questions"],
+                    ),
                 )
 
-            elif tool_name == "get_incident_prompts":
-                dataset_id = arguments["dataset_id"]
-                response = await client.get(
-                    f"{self.api_url}/prompts",
+            elif tool_name == "execute_nl_query":
+                response = await client.post(
+                    f"{self.api_url}/analytics/execute-nl-query",
                     headers=headers,
-                    params={"dataset_id": dataset_id},
+                    json=self._build_payload(
+                        arguments,
+                        ["dataset_id", "question", "schema", "timestamp_column"],
+                    ),
+                )
+
+            elif tool_name == "inject_scenario":
+                response = await client.post(
+                    f"{self.api_url}/scenarios/inject",
+                    headers=headers,
+                    json=self._build_payload(
+                        arguments,
+                        [
+                            "dataset_id",
+                            "csv_content",
+                            "scenario",
+                            "generate_tests",
+                            "include_negative",
+                            "max_cases",
+                            "variations_per_question",
+                        ],
+                    ),
                 )
 
             else:
@@ -95,3 +111,8 @@ class MantaClient:
 
             response.raise_for_status()
             return response.json()
+
+    @staticmethod
+    def _build_payload(arguments: dict[str, Any], allowed_keys: list[str]) -> dict[str, Any]:
+        """Return a payload with only endpoint-supported keys."""
+        return {key: arguments[key] for key in allowed_keys if key in arguments}

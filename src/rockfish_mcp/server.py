@@ -422,10 +422,10 @@ async def handle_list_tools() -> List[types.Tool]:
                 "required": ["id"],
             },
         ),
-        # Query tools
+        # SQL query tools
         types.Tool(
-            name="execute_query",
-            description="Execute a query and return results in CSV format",
+            name="execute_sql_query",
+            description="Execute a SQL query against Rockfish datasets and return results in CSV format",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -446,333 +446,103 @@ async def handle_list_tools() -> List[types.Tool]:
     # Add Manta tools only if Manta client is initialized
     if manta_client:
         manta_tools = [
-            # Manta Service - Data Manipulation tools (Incident Injection v2)
             types.Tool(
-                name="create_incident_dataset",
-                description="""Create a new dataset with injected incidents. There are 4 suppported incidents and each incident type requires a specific configuration schema:
-
-INCIDENT TYPE TO CONFIG MAPPING:
-1. 'instantaneous-spike-data' → InstantaneousSpikeIncidentConfig
-   - Injects sudden spikes at a single timestamp
-   - Required fields: impacted_metadata_predicate, impacted_measurement, absolute_magnitude, timestamp_column, timestamp
-
-2. 'sustained-magnitude-change-data' → SustainedMagnitudeChangeIncidentConfig
-   - Applies a sustained change over a time period
-   - Required fields: impacted_metadata_predicate, impacted_measurement, delta_magnitude, timestamp_column, start_timestamp, end_timestamp
-
-3. 'data-outage-data' → DataOutageIncidentConfig
-   - Creates data gaps/outages over a time period
-   - Required fields: impacted_metadata_predicate, impacted_measurement, absolute_magnitude, timestamp_column, start_timestamp, end_timestamp
-
-4. 'value-ramp-data' → ValueRampIncidentConfig
-   - Applies gradual ramping changes over a time period
-   - Required fields: impacted_metadata_predicate, impacted_measurement, end_absolute_magnitude, slope, timestamp_column, start_timestamp, end_timestamp
-
-IMPORTANT: The incident_config object schema MUST match the selected incident_type.""",
+                name="discover_schema",
+                description="Analyze dataset structure, classify columns, and compute measurement stats.",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "dataset_id": {
-                            "type": "string",
-                            "description": "Source time-series dataset ID",
-                        },
-                        "incident_type": {
-                            "type": "string",
-                            "enum": [
-                                "instantaneous-spike-data",
-                                "sustained-magnitude-change-data",
-                                "data-outage-data",
-                                "value-ramp-data",
-                            ],
-                            "description": "Type of incident to inject. MUST match the incident_config schema: instantaneous-spike-data→InstantaneousSpikeIncidentConfig, sustained-magnitude-change-data→SustainedMagnitudeChangeIncidentConfig, data-outage-data→DataOutageIncidentConfig, value-ramp-data→ValueRampIncidentConfig",
-                        },
-                        "incident_config": {
-                            "type": "object",
-                            "description": "Configuration object that MUST match the incident_type. See tool description for the exact mapping of incident_type to config schema.",
-                            "oneOf": [
-                                {
-                                    "title": "InstantaneousSpikeIncidentConfig (for incident_type='instantaneous-spike-data')",
-                                    "type": "object",
-                                    "properties": {
-                                        "impacted_metadata_predicate": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "column_name": {"type": "string"},
-                                                    "value": {
-                                                        "description": "Any value type"
-                                                    },
-                                                },
-                                                "required": ["column_name", "value"],
-                                            },
-                                            "description": "List of metadata predicates to identify impacted rows",
-                                        },
-                                        "impacted_measurement": {
-                                            "type": "string",
-                                            "description": "Name of the measurement column to inject spike into",
-                                        },
-                                        "absolute_magnitude": {
-                                            "type": ["number", "integer"],
-                                            "description": "Absolute spike value to inject",
-                                        },
-                                        "timestamp_column": {
-                                            "type": "string",
-                                            "description": "Name of the timestamp column",
-                                        },
-                                        "timestamp": {
-                                            "type": "string",
-                                            "format": "date-time",
-                                            "description": "Timestamp when spike occurs (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')",
-                                        },
-                                    },
-                                    "required": [
-                                        "impacted_metadata_predicate",
-                                        "impacted_measurement",
-                                        "absolute_magnitude",
-                                        "timestamp_column",
-                                        "timestamp",
-                                    ],
-                                },
-                                {
-                                    "title": "SustainedMagnitudeChangeIncidentConfig (for incident_type='sustained-magnitude-change-data')",
-                                    "type": "object",
-                                    "properties": {
-                                        "impacted_metadata_predicate": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "column_name": {"type": "string"},
-                                                    "value": {
-                                                        "description": "Any value type"
-                                                    },
-                                                },
-                                                "required": ["column_name", "value"],
-                                            },
-                                            "description": "List of metadata predicates to identify impacted rows",
-                                        },
-                                        "impacted_measurement": {
-                                            "type": "string",
-                                            "description": "Name of the measurement column to modify",
-                                        },
-                                        "delta_magnitude": {
-                                            "type": ["number", "integer"],
-                                            "description": "Delta value to add to measurements during incident period",
-                                        },
-                                        "timestamp_column": {
-                                            "type": "string",
-                                            "description": "Name of the timestamp column",
-                                        },
-                                        "start_timestamp": {
-                                            "type": "string",
-                                            "format": "date-time",
-                                            "description": "Start timestamp of sustained change (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')",
-                                        },
-                                        "end_timestamp": {
-                                            "type": "string",
-                                            "format": "date-time",
-                                            "description": "End timestamp of sustained change (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')",
-                                        },
-                                    },
-                                    "required": [
-                                        "impacted_metadata_predicate",
-                                        "impacted_measurement",
-                                        "delta_magnitude",
-                                        "timestamp_column",
-                                        "start_timestamp",
-                                        "end_timestamp",
-                                    ],
-                                },
-                                {
-                                    "title": "DataOutageIncidentConfig (for incident_type='data-outage-data')",
-                                    "type": "object",
-                                    "properties": {
-                                        "impacted_metadata_predicate": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "column_name": {"type": "string"},
-                                                    "value": {
-                                                        "description": "Any value type"
-                                                    },
-                                                },
-                                                "required": ["column_name", "value"],
-                                            },
-                                            "description": "List of metadata predicates to identify impacted rows",
-                                        },
-                                        "impacted_measurement": {
-                                            "type": "string",
-                                            "description": "Name of the measurement column to set to outage value",
-                                        },
-                                        "absolute_magnitude": {
-                                            "type": ["number", "integer"],
-                                            "description": "Value to set during outage (typically 0 or null-equivalent)",
-                                        },
-                                        "timestamp_column": {
-                                            "type": "string",
-                                            "description": "Name of the timestamp column",
-                                        },
-                                        "start_timestamp": {
-                                            "type": "string",
-                                            "format": "date-time",
-                                            "description": "Start timestamp of outage (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')",
-                                        },
-                                        "end_timestamp": {
-                                            "type": "string",
-                                            "format": "date-time",
-                                            "description": "End timestamp of outage (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')",
-                                        },
-                                    },
-                                    "required": [
-                                        "impacted_metadata_predicate",
-                                        "impacted_measurement",
-                                        "absolute_magnitude",
-                                        "timestamp_column",
-                                        "start_timestamp",
-                                        "end_timestamp",
-                                    ],
-                                },
-                                {
-                                    "title": "ValueRampIncidentConfig (for incident_type='value-ramp-data')",
-                                    "type": "object",
-                                    "properties": {
-                                        "impacted_metadata_predicate": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "column_name": {"type": "string"},
-                                                    "value": {
-                                                        "description": "Any value type"
-                                                    },
-                                                },
-                                                "required": ["column_name", "value"],
-                                            },
-                                            "description": "List of metadata predicates to identify impacted rows",
-                                        },
-                                        "impacted_measurement": {
-                                            "type": "string",
-                                            "description": "Name of the measurement column to ramp",
-                                        },
-                                        "end_absolute_magnitude": {
-                                            "type": ["number", "integer"],
-                                            "description": "Final absolute value at end of ramp",
-                                        },
-                                        "slope": {
-                                            "type": ["number", "integer"],
-                                            "description": "Rate of change per time unit",
-                                        },
-                                        "timestamp_column": {
-                                            "type": "string",
-                                            "description": "Name of the timestamp column",
-                                        },
-                                        "start_timestamp": {
-                                            "type": "string",
-                                            "format": "date-time",
-                                            "description": "Start timestamp of ramp (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')",
-                                        },
-                                        "end_timestamp": {
-                                            "type": "string",
-                                            "format": "date-time",
-                                            "description": "End timestamp of ramp (ISO 8601 format, e.g., '2024-01-15T10:30:00Z' or '2024-01-15T10:30:00-05:00')",
-                                        },
-                                    },
-                                    "required": [
-                                        "impacted_metadata_predicate",
-                                        "impacted_measurement",
-                                        "end_absolute_magnitude",
-                                        "slope",
-                                        "timestamp_column",
-                                        "start_timestamp",
-                                        "end_timestamp",
-                                    ],
-                                },
-                            ],
-                        },
-                        "organization_id": {
-                            "type": "string",
-                            "description": "Organization ID (required by Manta API)",
-                        },
-                        "project_id": {
-                            "type": "string",
-                            "description": "Project ID (required by Manta API)",
-                        },
+                        "dataset_id": {"type": "string"},
+                        "csv_content": {"type": "string"},
+                        "organization_id": {"type": "string", "description": "Defaults to ROCKFISH_ORGANIZATION_ID env var if not provided."},
+                        "project_id": {"type": "string", "description": "Defaults to ROCKFISH_PROJECT_ID env var if not provided."},
                     },
-                    "required": [
-                        "dataset_id",
-                        "incident_type",
-                        "incident_config",
-                        "organization_id",
-                        "project_id",
+                    "anyOf": [
+                        {"required": ["dataset_id"]},
+                        {"required": ["csv_content"]},
                     ],
                 },
             ),
             types.Tool(
-                name="generate_incident_prompts",
-                description="Generate analysis prompts for an incident dataset",
+                name="generate_test_suite",
+                description="Generate Q&A test cases for a dataset from ID or raw CSV.",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "dataset_id": {
-                            "type": "string",
-                            "description": "Incident dataset ID (from create_incident_dataset)",
-                        },
-                        "organization_id": {
-                            "type": "string",
-                            "description": "Organization ID (required by Manta API)",
-                        },
-                        "project_id": {
-                            "type": "string",
-                            "description": "Project ID (required by Manta API)",
-                        },
+                        "dataset_id": {"type": "string"},
+                        "csv_content": {"type": "string"},
+                        "schema": {"type": "object"},
+                        "organization_id": {"type": "string", "description": "Defaults to ROCKFISH_ORGANIZATION_ID env var if not provided."},
+                        "project_id": {"type": "string", "description": "Defaults to ROCKFISH_PROJECT_ID env var if not provided."},
                     },
-                    "required": ["dataset_id", "organization_id", "project_id"],
+                    "anyOf": [
+                        {"required": ["dataset_id"]},
+                        {"required": ["csv_content"]},
+                    ],
                 },
             ),
             types.Tool(
-                name="list_incident_datasets",
-                description="List all incident datasets derived from a source dataset",
+                name="execute_query",
+                description="Execute an Analytics structured query over a dataset.",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "dataset_id": {
-                            "type": "string",
-                            "description": "Source dataset ID",
-                        },
-                        "organization_id": {
-                            "type": "string",
-                            "description": "Organization ID (required by Manta API)",
-                        },
-                        "project_id": {
-                            "type": "string",
-                            "description": "Project ID (required by Manta API)",
-                        },
+                        "dataset_id": {"type": "string"},
+                        "query": {"type": "object"},
+                        "timestamp_column": {"type": "string"},
+                        "include_questions": {"type": "boolean"},
+                        "organization_id": {"type": "string", "description": "Defaults to ROCKFISH_ORGANIZATION_ID env var if not provided."},
+                        "project_id": {"type": "string", "description": "Defaults to ROCKFISH_PROJECT_ID env var if not provided."},
                     },
-                    "required": ["dataset_id", "organization_id", "project_id"],
+                    "required": ["dataset_id", "query"],
                 },
             ),
             types.Tool(
-                name="get_incident_prompts",
-                description="Retrieve previously generated prompts for an incident dataset",
+                name="execute_nl_query",
+                description="Execute a natural language query over a dataset.",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "dataset_id": {
-                            "type": "string",
-                            "description": "Incident dataset ID",
-                        },
-                        "organization_id": {
-                            "type": "string",
-                            "description": "Organization ID (required by Manta API)",
-                        },
-                        "project_id": {
-                            "type": "string",
-                            "description": "Project ID (required by Manta API)",
-                        },
+                        "dataset_id": {"type": "string"},
+                        "question": {"type": "string"},
+                        "schema": {"type": "object"},
+                        "timestamp_column": {"type": "string"},
+                        "organization_id": {"type": "string", "description": "Defaults to ROCKFISH_ORGANIZATION_ID env var if not provided."},
+                        "project_id": {"type": "string", "description": "Defaults to ROCKFISH_PROJECT_ID env var if not provided."},
                     },
-                    "required": ["dataset_id", "organization_id", "project_id"],
+                    "required": ["dataset_id", "question"],
+                },
+            ),
+            types.Tool(
+                name="inject_scenario",
+                description="Inject a synthetic anomaly scenario and optionally generate tests.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "dataset_id": {"type": "string"},
+                        "csv_content": {"type": "string"},
+                        "scenario": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string",
+                                    "enum": ["spike", "outage", "shift", "ramp"],
+                                }
+                            },
+                            "required": ["type"],
+                        },
+                        "generate_tests": {"type": "boolean"},
+                        "include_negative": {"type": "boolean"},
+                        "max_cases": {"type": "integer"},
+                        "variations_per_question": {"type": "integer"},
+                        "organization_id": {"type": "string", "description": "Defaults to ROCKFISH_ORGANIZATION_ID env var if not provided."},
+                        "project_id": {"type": "string", "description": "Defaults to ROCKFISH_PROJECT_ID env var if not provided."},
+                    },
+                    "required": ["scenario"],
+                    "anyOf": [
+                        {"required": ["dataset_id"]},
+                        {"required": ["csv_content"]},
+                    ],
                 },
             ),
         ]
@@ -1027,14 +797,20 @@ async def handle_call_tool(
                 types.TextContent(type="text", text=f"Error calling {name}: {str(e)}")
             ]
 
-    # Route Manta tools to manta_client (includes v2 tools without manta_ prefix)
-    manta_v2_tools = [
-        "create_incident_dataset",
-        "generate_incident_prompts",
-        "list_incident_datasets",
-        "get_incident_prompts",
+    # Backward compatibility: old SQL query calls used execute_query with string query.
+    # New Manta execute_query uses a structured query object.
+    if name == "execute_query" and isinstance(arguments.get("query"), str):
+        name = "execute_sql_query"
+
+    # Route Manta tools to manta_client
+    manta_tools = [
+        "discover_schema",
+        "generate_test_suite",
+        "execute_query",
+        "execute_nl_query",
+        "inject_scenario",
     ]
-    if name in manta_v2_tools:
+    if name in manta_tools:
         if not manta_client:
             return [
                 types.TextContent(
@@ -1044,6 +820,14 @@ async def handle_call_tool(
             ]
 
         try:
+            if "organization_id" not in arguments:
+                org_id = os.getenv("ROCKFISH_ORGANIZATION_ID")
+                if org_id:
+                    arguments = {**arguments, "organization_id": org_id}
+            if "project_id" not in arguments:
+                project_id = os.getenv("ROCKFISH_PROJECT_ID")
+                if project_id:
+                    arguments = {**arguments, "project_id": project_id}
             result = await manta_client.call_endpoint(name, arguments)
             return [types.TextContent(type="text", text=str(result))]
         except Exception as e:

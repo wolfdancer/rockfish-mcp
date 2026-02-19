@@ -299,7 +299,16 @@ black --check src/rockfish_mcp/
 
 ### Running Tests
 
-The project includes automated tests for the Manta incident injection tools. To run tests, you'll need to set up the required environment variables:
+The project includes:
+- Unit tests for Manta Analytics/Scenarios tool routing and header behavior (no external API required)
+- Integration tests for Rockfish/Manta APIs (requires credentials)
+
+**Run unit tests (recommended for local validation):**
+```bash
+python -m pytest tests/test_manta_client.py tests/test_manta_tools.py
+```
+
+To run the integration tests, set the required environment variables:
 
 **Required Environment Variables:**
 ```bash
@@ -309,34 +318,31 @@ ROCKFISH_API_URL=https://api.rockfish.ai
 MANTA_API_URL=https://manta.rockfish.ai
 ROCKFISH_ORGANIZATION_ID=your_organization_id
 ROCKFISH_PROJECT_ID=your_project_id
-INCIDENT_CREATION_TEST_DATASET=your_test_dataset_id
 ```
 
 **Running the tests:**
 ```bash
 # Run all tests
-pytest tests/
+python -m pytest tests/
 
-# Run specific test file
-pytest tests/test_create_incident_dataset.py
+# Run integration-focused test file
+python -m pytest tests/test_list_resources.py
 
 # Run tests with verbose output
-pytest -v tests/
+python -m pytest -v tests/
 
 # Run tests and see print output
-pytest -s tests/
+python -m pytest -s tests/
 ```
 
 **Test Coverage:**
-- **test_create_incident_dataset.py**: Tests the `create_incident_dataset` tool with all four incident types:
-  - `instantaneous-spike-data`: Sudden spikes in time-series data
-  - `sustained-magnitude-change-data`: Sustained changes over a time period
-  - `data-outage-data`: Simulated data gaps/outages
-  - `value-ramp-data`: Gradual ramping changes
-
-  Test configurations are defined in [tests/incidents.yaml](tests/incidents.yaml)
-
-**Note:** The `INCIDENT_CREATION_TEST_DATASET` should be a valid dataset ID in your Rockfish project with time-series data suitable for incident injection testing.
+- **tests/test_manta_client.py**: Verifies Manta auth headers and endpoint routing for:
+  - `discover_schema`
+  - `generate_test_suite`
+  - `execute_query`
+  - `execute_nl_query`
+  - `inject_scenario`
+- **tests/test_manta_tools.py**: Verifies tool registration and server-side routing for new Manta tools and SQL query backwards compatibility.
 
 ### Contributing
 
