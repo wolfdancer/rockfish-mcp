@@ -1,5 +1,7 @@
 """Tests for Manta Analytics/Scenarios tool registration and routing."""
 
+import os
+
 import pytest
 from mcp import types
 
@@ -74,7 +76,21 @@ async def test_new_manta_tools_route_to_manta_client(tool_name, arguments):
 
     assert len(result) == 1
     assert isinstance(result[0], types.TextContent)
-    assert dummy_manta.calls == [(tool_name, arguments)]
+    assert len(dummy_manta.calls) == 1
+    called_tool_name, called_arguments = dummy_manta.calls[0]
+    assert called_tool_name == tool_name
+
+    # The server augments Manta calls with default org/project IDs from env when absent.
+    for key, value in arguments.items():
+        assert called_arguments[key] == value
+
+    env_org_id = os.getenv("ROCKFISH_ORGANIZATION_ID")
+    if env_org_id:
+        assert called_arguments["organization_id"] == env_org_id
+
+    env_project_id = os.getenv("ROCKFISH_PROJECT_ID")
+    if env_project_id:
+        assert called_arguments["project_id"] == env_project_id
     assert tool_name in result[0].text
 
 

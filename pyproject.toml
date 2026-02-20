@@ -48,3 +48,6 @@ where = ["src"]
 [project.urls]
 Homepage = "https://github.com/yourusername/rockfish-mcp"
 Repository = "https://github.com/yourusername/rockfish-mcp"
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
